@@ -2,6 +2,7 @@
   "name": "ai-hrms",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -31,6 +32,7 @@
     "cloudinary": "^2.8.0",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
+    "dotenv": "^17.2.3",
     "lucide-react": "^0.548.0",
     "mammoth": "^1.11.0",
     "mongodb": "^7.0.0",

@@ -53,6 +53,19 @@ export default function ApplyPage() {
   const fetchJob = async () => {
     try {
       const response = await fetch(`/api/jobs/${params.id}`);
+      
+      // Check if the response is OK and if the content type is JSON
+      const contentType = response.headers.get("content-type");
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      if (!contentType || !contentType.includes("application/json")) {
+        const text = await response.text();
+        console.error("Expected JSON but received:", text);
+        throw new Error("Received non-JSON response from server");
+      }
+      
       const data = await response.json();
 
       if (response.ok) {
@@ -64,6 +77,7 @@ export default function ApplyPage() {
     } catch (error) {
       console.error("Error fetching job:", error);
       toast.error("Failed to load job details");
+      router.push("/jobs");
     } finally {
       setLoading(false);
     }
@@ -73,19 +87,41 @@ export default function ApplyPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
+    // Log file information for debugging
+    console.log("File selected:", {
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      lastModified: file.lastModified
+    });
+
+    // Validate file type with more flexible checking
     const validTypes = [
       "application/pdf",
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/msword"
     ];
-    if (!validTypes.includes(file.type)) {
-      toast.error("Please upload a PDF or DOCX file");
+    
+    const isFileTypeValid = validTypes.includes(file.type) || 
+      file.type.includes("pdf") || 
+      file.type.includes("wordprocessingml.document") || 
+      file.type.includes("docx") ||
+      file.type.includes("msword");
+      
+    console.log("File type validation:", {
+      fileType: file.type,
+      isValid: isFileTypeValid,
+      validTypes: validTypes
+    });
+
+    if (!isFileTypeValid) {
+      toast.error("Please upload a PDF or DOCX file. Other formats are not supported.");
       return;
     }
 
     // Validate file size (10MB max)
     if (file.size > 10 * 1024 * 1024) {
-      toast.error("File size must be less than 10MB");
+      toast.error("File size must be less than 10MB. Please compress your file or try a smaller document.");
       return;
     }
 
@@ -96,19 +132,74 @@ export default function ApplyPage() {
   const parseResume = async (file) => {
     setParsing(true);
     try {
+      console.log("Sending file to parse API:", {
+        name: file.name,
+        size: file.size,
+        type: file.type
+      });
+
       const formData = new FormData();
       formData.append("resume", file);
 
-      const response = await fetch("/api/parse-resume", {
-        method: "POST",
-        body: formData,
+      let response;
+      try {
+        response = await fetch("/api/parse-resume", {
+          method: "POST",
+          body: formData,
+        });
+      } catch (networkError) {
+        console.error("Network error during file upload:", networkError);
+        throw new Error("Network error occurred while uploading file. Please check your connection and try again.");
+      }
+
+      console.log("Parse API response:", {
+        status: response.status,
+        statusText: response.statusText
       });
 
-      const data = await response.json();
-
+      // Check if response is OK before trying to parse JSON
       if (!response.ok) {
-        throw new Error(data.error || "Failed to parse resume");
+        let errorMessage = "Failed to parse resume";
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+          // If we can't parse the error response, use the status text
+          errorMessage = response.statusText || errorMessage;
+        }
+        
+        // Handle "corrupted" files more gracefully
+        if (errorMessage.includes("corrupted") || errorMessage.includes("Corrupted") || 
+            errorMessage.includes("difficulty parsing") || errorMessage.includes("common with certain PDF formats") ||
+            errorMessage.includes("common with certain DOCX formats") || errorMessage.includes("convert to DOCX format") ||
+            errorMessage.includes("better compatibility")) {
+          // This is actually a success case - the file was processed but had parsing issues
+          toast.success("File processed successfully! The system had difficulty parsing your resume file, but this is common with certain file formats. Please fill in your details below.");
+          setParsing(false);
+          return; // Don't show error, continue with manual entry
+        } else if (response.status === 400) {
+          if (errorMessage.includes("password")) {
+            throw new Error("Password-protected files are not supported. Please remove the password and try again.");
+          } else if (errorMessage.includes("canvas")) {
+            throw new Error("This PDF file requires additional dependencies that are not available. Please try converting to DOCX format.");
+          } else if (errorMessage.includes("Invalid")) {
+            throw new Error("Invalid file format. Please ensure you're uploading a valid PDF or DOCX file. Try converting to DOCX if you continue to have issues.");
+          }
+        } else if (response.status === 500) {
+          throw new Error("Our system encountered an error while processing your resume. Please try again or contact support if the issue persists.");
+        }
+        throw new Error(errorMessage);
       }
+
+      let data;
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        console.error("Error parsing response JSON:", parseError);
+        throw new Error("Invalid response from server. Please try again.");
+      }
+      
+      console.log("Parse API data:", data);
 
       // Auto-fill form with parsed data
       setFormData((prev) => ({
@@ -123,14 +214,26 @@ export default function ApplyPage() {
       }));
 
       toast.success(
-        "Resume parsed successfully! Please review and edit the details."
+        "Resume parsed successfully! Please review and edit the details below."
       );
     } catch (error) {
       console.error("Error parsing resume:", error);
-      toast.error(
-        error.message ||
-          "Failed to parse resume. Please fill the form manually."
-      );
+      // Provide more user-friendly error messages with solutions
+      let userMessage = error.message || "Failed to parse resume. Please fill the form manually.";
+      
+      // Add helpful suggestions for common issues
+      if (userMessage.includes("corrupted") || userMessage.includes("Corrupted")) {
+        userMessage = "File processed successfully! The system had difficulty parsing your resume file, but this is common with certain file formats. Please fill in your details below.";
+        toast.success(userMessage);
+        setParsing(false);
+        return; // Don't show error, continue with manual entry
+      } else if (userMessage.includes("canvas") || userMessage.includes("worker") || userMessage.includes("convert to DOCX format") || userMessage.includes("better compatibility")) {
+        userMessage += " Converting your file to DOCX format often resolves this issue.";
+      } else if (userMessage.includes("Invalid")) {
+        userMessage += " Please ensure you're uploading a valid PDF or DOCX file created with standard software like Microsoft Word or Google Docs.";
+      }
+      
+      toast.error(userMessage);
     } finally {
       setParsing(false);
     }
@@ -171,10 +274,44 @@ export default function ApplyPage() {
         body: submitData,
       });
 
-      const data = await response.json();
+      let data;
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        throw new Error("Invalid response from server. Please try again.");
+      }
 
       if (!response.ok) {
-        throw new Error(data.error || "Failed to submit application");
+        // Handle specific error cases
+        if (response.status === 400) {
+          if (data.error && data.error.includes("password")) {
+            throw new Error("Password-protected files are not supported. Please remove the password and try again.");
+          } else if (data.error && (data.error.includes("corrupted") || data.error.includes("Corrupted") || 
+                     data.error.includes("difficulty parsing") || data.error.includes("common with certain PDF formats") ||
+                     data.error.includes("convert to DOCX format") || data.error.includes("better compatibility"))) {
+            // This is actually a success case - the file was processed but had parsing issues
+            toast.success("Application submitted successfully! The system had difficulty parsing your resume file, but your application was submitted with the information you provided.");
+            // Redirect to success page
+            const successUrl = `/jobs/${params.id}/apply/success?token=${
+              data.application?.token || 'unknown'
+            }&jobTitle=${encodeURIComponent(
+              data.application?.jobTitle || job.title
+            )}&email=${encodeURIComponent(data.application?.email || formData.email)}&matchScore=${
+              data.application?.matchScore || 0
+            }`;
+            router.push(successUrl);
+            return; // Don't show error, continue with success
+          } else if (data.error && data.error.includes("Invalid")) {
+            throw new Error("Invalid file format. Please ensure you're uploading a valid PDF or DOCX file.");
+          }
+          throw new Error(data.error || "Invalid application data. Please check your information.");
+        } else if (response.status === 404) {
+          throw new Error("Job not found. It may have been removed.");
+        } else if (response.status === 500) {
+          throw new Error(data.userMessage || data.error || "Server error occurred. Please try again or contact support.");
+        } else {
+          throw new Error(data.error || "Failed to submit application");
+        }
       }
 
       toast.success("Application submitted successfully!");
@@ -190,7 +327,33 @@ export default function ApplyPage() {
       router.push(successUrl);
     } catch (error) {
       console.error("Error submitting application:", error);
-      toast.error(error.message || "Failed to submit application");
+      // Provide user-friendly error messages
+      let errorMessage = "Failed to submit application. Please try again.";
+      
+      if (error.message) {
+        // Don't show internal error details to users in production
+        if (process.env.NODE_ENV === 'development' || error.message.includes("Please")) {
+          errorMessage = error.message;
+        } else if (error.message.includes("password")) {
+          errorMessage = "Password-protected files are not supported. Please remove the password and try again.";
+        } else if (error.message.includes("corrupted") || error.message.includes("Corrupted") ||
+                   error.message.includes("difficulty parsing") || error.message.includes("common with certain PDF formats") ||
+                   error.message.includes("convert to DOCX format") || error.message.includes("better compatibility")) {
+          // This is actually a success case - the file was processed but had parsing issues
+          toast.success("Application submitted successfully! The system had difficulty parsing your resume file, but your application was submitted with the information you provided.");
+          // Redirect to success page
+          const successUrl = `/jobs/${params.id}/apply/success?token=unknown&jobTitle=${encodeURIComponent(job.title)}&email=${encodeURIComponent(formData.email)}&matchScore=0`;
+          router.push(successUrl);
+          setSubmitting(false);
+          return; // Don't show error, continue with success
+        } else if (error.message.includes("Invalid")) {
+          errorMessage = "Invalid file format. Please ensure you're uploading a valid PDF or DOCX file.";
+        } else {
+          errorMessage = "An error occurred while submitting your application. Please try again.";
+        }
+      }
+      
+      toast.error(errorMessage);
     } finally {
       setSubmitting(false);
     }

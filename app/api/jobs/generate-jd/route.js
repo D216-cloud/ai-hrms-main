@@ -6,14 +6,25 @@ import { generateJobDescription } from "@/lib/openai";
 // POST /api/jobs/generate-jd - Generate job description using AI
 export async function POST(request) {
   try {
+    // Log the request headers for debugging
+    console.log("Request headers:", Object.fromEntries(request.headers));
+    
     const session = await getServerSession(authOptions);
+    
+    // Log session for debugging
+    console.log("Session in /api/jobs/generate-jd:", session);
+    console.log("Session user:", session?.user);
+    console.log("Session user role:", session?.user?.role);
 
     // Only hr and admin can generate job descriptions
-    if (
-      !session ||
-      (session.user.role !== "hr" && session.user.role !== "admin")
-    ) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!session) {
+      console.log("No session found - Unauthorized access");
+      return NextResponse.json({ error: "Unauthorized - No session" }, { status: 401 });
+    }
+    
+    if (session.user.role !== "hr" && session.user.role !== "admin") {
+      console.log("Invalid role for access:", session.user.role);
+      return NextResponse.json({ error: "Unauthorized - Invalid role" }, { status: 401 });
     }
 
     const body = await request.json();

@@ -71,6 +71,9 @@ CREATE TABLE IF NOT EXISTS applications (
   communication_score INTEGER DEFAULT 0, -- 0-100 from transcript evaluation
   overall_score INTEGER DEFAULT 0, -- Weighted average
   
+  -- AI Match Data
+  ai_match_data JSONB, -- Store AI analysis results
+  
   -- Status Management
   status TEXT DEFAULT 'submitted' CHECK (status IN ('submitted', 'shortlisted', 'rejected', 'interviewing', 'offered', 'hired')),
   

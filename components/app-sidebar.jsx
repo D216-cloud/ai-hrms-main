@@ -57,6 +57,11 @@ const mainMenuItems = [
     url: "/admin/candidates",
     icon: Users,
   },
+  {
+    title: "My Resume",
+    url: "/admin/resume",
+    icon: FileText,
+  },
 ];
 
 const quickActions = [

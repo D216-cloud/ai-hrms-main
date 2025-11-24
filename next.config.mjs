@@ -2,6 +2,10 @@
 const nextConfig = {
   /* config options here */
   reactCompiler: true,
+  // Ensure cookies are properly handled
+  experimental: {
+    serverComponentsExternalPackages: ["openai", "pdf-parse"],
+  },
 };
 
 export default nextConfig;

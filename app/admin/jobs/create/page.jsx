@@ -31,6 +31,7 @@ import {
   Briefcase,
   DollarSign,
 } from "lucide-react";
+import SessionDebugger from "@/components/SessionDebugger";
 
 export default function CreateJobPage() {
   const router = useRouter();
@@ -85,6 +86,7 @@ export default function CreateJobPage() {
             ? parseFloat(formData.salaryMax)
             : undefined,
         }),
+        credentials: "include", // Include credentials with the request
       });
 
       const data = await response.json();
@@ -92,6 +94,15 @@ export default function CreateJobPage() {
       if (!response.ok) {
         // Show specific error message from API
         const errorMessage = data.error || "Failed to generate job description";
+        
+        // Handle unauthorized access specifically
+        if (response.status === 401) {
+          toast.error("You must be logged in as HR or Admin to generate job descriptions");
+          // Redirect to login page
+          router.push("/auth/signin");
+          return;
+        }
+        
         if (data.missingFields) {
           toast.error(`Missing fields: ${data.missingFields.join(", ")}`);
         } else if (data.field) {
@@ -222,7 +233,7 @@ export default function CreateJobPage() {
   };
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
       {/* Header */}
       <div className="flex items-center gap-4 animate-in slide-in-from-top-4 duration-500">
         <Button 
@@ -234,7 +245,7 @@ export default function CreateJobPage() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
             Create Job Posting
             <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">New</Badge>
           </h1>
@@ -246,7 +257,7 @@ export default function CreateJobPage() {
 
       {/* Form */}
       <Card className="border-gray-200 dark:border-gray-800 shadow-xl animate-in slide-in-from-bottom-4 duration-700 delay-150">
-        <CardHeader className="border-b border-gray-100 dark:border-gray-800 bg-linear-to-r from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
+        <CardHeader className="border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900">
           <CardTitle className="flex items-center gap-2 text-gray-900 dark:text-white">
             <Briefcase className="h-5 w-5 text-blue-600" />
             Job Details
@@ -256,129 +267,128 @@ export default function CreateJobPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6 pt-6">
-          {/* Job Title */}
-          <div className="space-y-2 group">
-            <Label htmlFor="title" className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-              Job Title <span className="text-red-500">*</span>
-              <Badge variant="outline" className="text-xs font-normal">Required</Badge>
-            </Label>
-            <Input
-              id="title"
-              name="title"
-              placeholder="e.g., Senior Full Stack Developer"
-              value={formData.title}
-              onChange={handleChange}
-              className="h-12 border-gray-200 dark:border-gray-700 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
-            />
-          </div>
-
-          {/* Location */}
-          <div className="space-y-2 group">
-            <Label htmlFor="location" className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-              <MapPin className="h-4 w-4 text-gray-500" />
-              Location <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              id="location"
-              name="location"
-              placeholder="e.g., San Francisco, CA (Remote)"
-              value={formData.location}
-              onChange={handleChange}
-              className="h-12 border-gray-200 dark:border-gray-700 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
-            />
-          </div>
-
-          {/* Experience Range */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2 group">
-              <Label htmlFor="experienceMin" className="text-sm font-semibold text-gray-900 dark:text-white">
-                Min Experience (years) <span className="text-red-500">*</span>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Job Title */}
+            <div className="space-y-2 group md:col-span-2">
+              <Label htmlFor="title" className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                Job Title <span className="text-red-500">*</span>
+                <Badge variant="outline" className="text-xs font-normal">Required</Badge>
               </Label>
               <Input
-                id="experienceMin"
-                name="experienceMin"
-                type="number"
-                min="0"
-                placeholder="0"
-                value={formData.experienceMin}
+                id="title"
+                name="title"
+                placeholder="e.g., Senior Full Stack Developer"
+                value={formData.title}
                 onChange={handleChange}
                 className="h-12 border-gray-200 dark:border-gray-700 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
               />
             </div>
+
+            {/* Location */}
             <div className="space-y-2 group">
-              <Label htmlFor="experienceMax" className="text-sm font-semibold text-gray-900 dark:text-white">
-                Max Experience (years) <span className="text-red-500">*</span>
+              <Label htmlFor="location" className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-gray-500" />
+                Location <span className="text-red-500">*</span>
               </Label>
               <Input
-                id="experienceMax"
-                name="experienceMax"
-                type="number"
-                min="0"
-                placeholder="5"
-                value={formData.experienceMax}
+                id="location"
+                name="location"
+                placeholder="e.g., San Francisco, CA (Remote)"
+                value={formData.location}
                 onChange={handleChange}
                 className="h-12 border-gray-200 dark:border-gray-700 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
               />
             </div>
-          </div>
 
-          {/* Salary Range */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Experience Range */}
             <div className="space-y-2 group">
-              <Label htmlFor="salaryMin" className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <Label className="text-sm font-semibold text-gray-900 dark:text-white">
+                Experience Range (years) <span className="text-red-500">*</span>
+              </Label>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Input
+                    id="experienceMin"
+                    name="experienceMin"
+                    type="number"
+                    min="0"
+                    placeholder="Min"
+                    value={formData.experienceMin}
+                    onChange={handleChange}
+                    className="h-12 border-gray-200 dark:border-gray-700 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
+                  />
+                </div>
+                <div>
+                  <Input
+                    id="experienceMax"
+                    name="experienceMax"
+                    type="number"
+                    min="0"
+                    placeholder="Max"
+                    value={formData.experienceMax}
+                    onChange={handleChange}
+                    className="h-12 border-gray-200 dark:border-gray-700 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Salary Range */}
+            <div className="space-y-2 group">
+              <Label className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                 <DollarSign className="h-4 w-4 text-gray-500" />
-                Min Salary ($)
+                Salary Range ($)
+              </Label>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Input
+                    id="salaryMin"
+                    name="salaryMin"
+                    type="number"
+                    min="0"
+                    placeholder="Min"
+                    value={formData.salaryMin}
+                    onChange={handleChange}
+                    className="h-12 border-gray-200 dark:border-gray-700 focus:border-green-500 dark:focus:border-green-400 focus:ring-2 focus:ring-green-500/20 transition-all duration-200"
+                  />
+                </div>
+                <div>
+                  <Input
+                    id="salaryMax"
+                    name="salaryMax"
+                    type="number"
+                    min="0"
+                    placeholder="Max"
+                    value={formData.salaryMax}
+                    onChange={handleChange}
+                    className="h-12 border-gray-200 dark:border-gray-700 focus:border-green-500 dark:focus:border-green-400 focus:ring-2 focus:ring-green-500/20 transition-all duration-200"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Skills */}
+            <div className="space-y-2 group md:col-span-2">
+              <Label htmlFor="skills" className="text-sm font-semibold text-gray-900 dark:text-white">
+                Required Skills
               </Label>
               <Input
-                id="salaryMin"
-                name="salaryMin"
-                type="number"
-                min="0"
-                placeholder="80000"
-                value={formData.salaryMin}
+                id="skills"
+                name="skills"
+                placeholder="e.g., React, Node.js, PostgreSQL (comma-separated)"
+                value={formData.skills}
                 onChange={handleChange}
-                className="h-12 border-gray-200 dark:border-gray-700 focus:border-green-500 dark:focus:border-green-400 focus:ring-2 focus:ring-green-500/20 transition-all duration-200"
+                className="h-12 border-gray-200 dark:border-gray-700 focus:border-purple-500 dark:focus:border-purple-400 focus:ring-2 focus:ring-purple-500/20 transition-all duration-200"
               />
+              <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                <span className="text-xs">💡</span>
+                Enter skills separated by commas
+              </p>
             </div>
-            <div className="space-y-2 group">
-              <Label htmlFor="salaryMax" className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                <DollarSign className="h-4 w-4 text-gray-500" />
-                Max Salary ($)
-              </Label>
-              <Input
-                id="salaryMax"
-                name="salaryMax"
-                type="number"
-                min="0"
-                placeholder="120000"
-                value={formData.salaryMax}
-                onChange={handleChange}
-                className="h-12 border-gray-200 dark:border-gray-700 focus:border-green-500 dark:focus:border-green-400 focus:ring-2 focus:ring-green-500/20 transition-all duration-200"
-              />
-            </div>
-          </div>
-
-          {/* Skills */}
-          <div className="space-y-2 group">
-            <Label htmlFor="skills" className="text-sm font-semibold text-gray-900 dark:text-white">
-              Required Skills
-            </Label>
-            <Input
-              id="skills"
-              name="skills"
-              placeholder="e.g., React, Node.js, PostgreSQL (comma-separated)"
-              value={formData.skills}
-              onChange={handleChange}
-              className="h-12 border-gray-200 dark:border-gray-700 focus:border-purple-500 dark:focus:border-purple-400 focus:ring-2 focus:ring-purple-500/20 transition-all duration-200"
-            />
-            <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
-              <span className="text-xs">💡</span>
-              Enter skills separated by commas
-            </p>
           </div>
 
           {/* AI Generate Button */}
-          <div className="flex items-center gap-4 p-5 bg-linear-to-br from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 rounded-xl border-2 border-blue-200 dark:border-blue-800 shadow-md hover:shadow-xl transition-all duration-300 group">
+          <div className="flex items-center gap-4 p-5 bg-blue-50 dark:bg-blue-950/20 rounded-xl border-2 border-blue-200 dark:border-blue-800 shadow-md hover:shadow-xl transition-all duration-300 group">
             <div className="shrink-0">
               <div className="w-12 h-12 rounded-full bg-blue-600 dark:bg-blue-500 flex items-center justify-center shadow-lg group-hover:scale-110 group-hover:rotate-12 transition-all duration-300">
                 <Sparkles className="h-6 w-6 text-white animate-pulse" />
@@ -504,13 +514,13 @@ export default function CreateJobPage() {
           <div className="mt-6">
             {/* Job Card Preview - Matches public job card design */}
             <Card className="border-2 border-gray-200 dark:border-gray-800 shadow-xl hover:shadow-2xl transition-all duration-300">
-              <CardHeader className="bg-linear-to-r from-gray-50 to-white dark:from-gray-900 dark:to-gray-950 border-b border-gray-200 dark:border-gray-800">
-                <div className="flex items-start justify-between gap-4">
+              <CardHeader className="bg-gradient-to-r from-gray-50 to-white dark:from-gray-900 dark:to-gray-950 border-b border-gray-200 dark:border-gray-800">
+                <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                   <div className="flex-1">
-                    <CardTitle className="text-3xl mb-3 text-gray-900 dark:text-white">
+                    <CardTitle className="text-2xl md:text-3xl mb-3 text-gray-900 dark:text-white">
                       {formData.title || "Job Title"}
                     </CardTitle>
-                    <div className="flex flex-wrap gap-4 text-sm text-gray-600 dark:text-gray-400">
+                    <div className="flex flex-wrap gap-3 text-sm text-gray-600 dark:text-gray-400">
                       <span className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 dark:bg-blue-950/30 rounded-lg">
                         <MapPin className="h-4 w-4 text-blue-600" />
                         {formData.location || "Location"}
@@ -541,7 +551,7 @@ export default function CreateJobPage() {
                       )}
                     </div>
                   </div>
-                  <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 text-sm px-3 py-1">
+                  <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 text-sm px-3 py-1 w-fit">
                     ✓ Active
                   </Badge>
                 </div>
@@ -579,7 +589,7 @@ export default function CreateJobPage() {
                             <Badge 
                               key={idx} 
                               variant="secondary" 
-                              className="px-3 py-1.5 text-sm bg-linear-to-r from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30 hover:scale-105 transition-transform duration-200"
+                              className="px-3 py-1.5 text-sm bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30 hover:scale-105 transition-transform duration-200"
                             >
                               {skill}
                             </Badge>

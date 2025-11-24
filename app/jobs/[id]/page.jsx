@@ -35,6 +35,19 @@ export default function JobDetailPage() {
   const fetchJob = async () => {
     try {
       const response = await fetch(`/api/jobs/${params.id}`);
+      
+      // Check if the response is OK and if the content type is JSON
+      const contentType = response.headers.get("content-type");
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      if (!contentType || !contentType.includes("application/json")) {
+        const text = await response.text();
+        console.error("Expected JSON but received:", text);
+        throw new Error("Received non-JSON response from server");
+      }
+      
       const data = await response.json();
 
       if (response.ok) {
@@ -45,6 +58,7 @@ export default function JobDetailPage() {
       }
     } catch (error) {
       console.error("Error fetching job:", error);
+      router.push("/jobs");
     } finally {
       setLoading(false);
     }
