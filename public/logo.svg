@@ -1,0 +1,44 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background gradient -->
+  <defs>
+    <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#14b8a6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0d9488;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="accentGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#06b6d4;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0891b2;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Rounded rectangle background -->
+  <rect x="20" y="20" width="160" height="160" rx="30" fill="url(#logoGradient)" />
+
+  <!-- Decorative circle accent -->
+  <circle cx="150" cy="50" r="20" fill="url(#accentGradient)" opacity="0.6" />
+
+  <!-- Main icon - stylized HR/People symbol with lightning -->
+  <g transform="translate(100, 100)">
+    <!-- Lightning bolt (representing energy/speed) -->
+    <path d="M -5 -25 L 10 -5 L 5 -5 L 15 20 L -10 5 L -5 5 Z" fill="white" opacity="0.95" />
+
+    <!-- Left person circle -->
+    <circle cx="-25" cy="-15" r="8" fill="white" opacity="0.9" />
+    <path d="M -30 0 Q -30 8 -25 10 Q -20 8 -20 0 Z" fill="white" opacity="0.9" />
+
+    <!-- Right person circle -->
+    <circle cx="25" cy="-15" r="8" fill="white" opacity="0.9" />
+    <path d="M 20 0 Q 20 8 25 10 Q 30 8 30 0 Z" fill="white" opacity="0.9" />
+
+    <!-- Connection line between people (representing management/connection) -->
+    <line x1="-17" y1="0" x2="17" y2="0" stroke="white" stroke-width="2" opacity="0.8" />
+
+    <!-- Decorative dots -->
+    <circle cx="-8" cy="15" r="3" fill="url(#accentGradient)" />
+    <circle cx="0" cy="20" r="3" fill="url(#accentGradient)" />
+    <circle cx="8" cy="15" r="3" fill="url(#accentGradient)" />
+  </g>
+
+  <!-- Optional: Add a subtle border -->
+  <rect x="20" y="20" width="160" height="160" rx="30" fill="none" stroke="white" stroke-width="1.5" opacity="0.3" />
+</svg>
