@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
 import { generateEmbedding } from "@/lib/openai";
 
@@ -159,9 +159,25 @@ export async function DELETE(request, { params }) {
 
     const { id } = await params;
 
+    // For HR users, verify they own the job
+    if (session.user.role === "hr") {
+      const { data: job } = await supabaseAdmin
+        .from("jobs")
+        .select("hr_email")
+        .eq("id", id)
+        .single();
+
+      if (!job || job.hr_email !== session.user.email) {
+        return NextResponse.json(
+          { error: "You can only delete your own jobs" },
+          { status: 403 }
+        );
+      }
+    }
+
     // Check if job has applications
     const { data: applications } = await supabaseAdmin
-      .from("applications")
+      .from("job_applications")
       .select("id")
       .eq("job_id", id)
       .limit(1);

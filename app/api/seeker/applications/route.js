@@ -1,5 +1,5 @@
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 
 // GET - Get all applications for logged-in job seeker
@@ -36,32 +36,36 @@ export async function GET(request) {
 
     console.log('Job seeker found:', jobSeeker.id, jobSeeker.full_name);
 
-    // Get all applications for this seeker from applications table (matching by email)
+    // Get all applications for this seeker from job_applications table
+    // This table is where applications are actually stored when submitted via /api/applications
     const { data: applications, error: applicationsError } = await supabaseAdmin
-      .from('applications')
-      .select('id, job_id, status, created_at, cover_letter, resume_url, resume_match_score, updated_at, overall_score, name, email')
-      .eq('email', userEmail)
-      .order('created_at', { ascending: false });
+      .from('job_applications')
+      .select(`
+        *,
+        jobs(id, title, company, location, description, salary_min, salary_max, job_type)
+      `)
+      .eq('seeker_id', jobSeeker.id)
+      .order('applied_at', { ascending: false });
 
     if (applicationsError) {
       console.error('Error fetching applications:', applicationsError);
       console.error('Error code:', applicationsError.code);
       console.error('Error message:', applicationsError.message);
-      
-      // If applications table doesn't exist, return empty array with helpful message
+
+      // If job_applications table doesn't exist, return empty array with helpful message
       if (applicationsError.code === 'PGRST205' || applicationsError.code === '42P01') {
-        console.warn('applications table not found - please run database setup');
+        console.warn('job_applications table not found - please run database setup');
         return Response.json({
           applications: [],
           total: 0,
           message: 'Database setup required. Please contact administrator.'
         });
       }
-      
+
       return Response.json(
-        { 
+        {
           error: 'Failed to fetch applications',
-          details: applicationsError.message 
+          details: applicationsError.message
         },
         { status: 500 }
       );
@@ -70,49 +74,95 @@ export async function GET(request) {
     console.log('Applications found:', applications?.length || 0);
     console.log('Application IDs:', applications?.map(a => a.id) || []);
 
-    // Now fetch job details for each application
-    let applicationsWithJobs = [];
-    if (applications && applications.length > 0) {
-      const jobIds = applications.map(app => app.job_id);
-      console.log('Fetching job details for job IDs:', jobIds);
-      
-      const { data: jobs, error: jobsError } = await supabaseAdmin
-        .from('jobs')
-        .select('id, title, company, location, description, salary_min, salary_max, job_type')
-        .in('id', jobIds);
+    // ALSO check the public 'applications' table (for candidates who applied without an account)
+    // Match by email so job seekers who later created accounts still see their past applications
+    const { data: publicApplications, error: publicApplicationsError } = await supabaseAdmin
+      .from('applications')
+      .select(`
+        *,
+        jobs(id, title, company, location, description, salary_min, salary_max, job_type)
+      `)
+      .eq('email', userEmail)
+      .order('created_at', { ascending: false });
 
-      if (jobsError) {
-        console.error('Error fetching jobs:', jobsError);
-      }
+    if (publicApplicationsError) {
+      // Log but don't fail the whole request if public applications table/query isn't present
+      console.warn('Error fetching public applications (applications table):', publicApplicationsError?.message || publicApplicationsError);
+    } else {
+      console.log('Public applications found:', publicApplications?.length || 0);
+    }
 
-      console.log('Jobs fetched:', jobs?.length || 0);
-      if (jobs && jobs.length > 0) {
-        console.log('Sample job:', jobs[0]);
-      }
+    // Normalize and merge applications from both sources (job_applications and public applications)
+    const normalizeJobApp = (app) => {
+      const appliedAt = app.applied_at || app.created_at || app.updated_at || null;
+      return {
+        id: app.id,
+        job_id: app.job_id,
+        seeker_id: app.seeker_id || null,
+        // Prefer seeker email from joined job_seekers if available
+        email: app.job_seekers?.email || app.email || null,
+        name: app.name || app.job_seekers?.full_name || null,
+        phone: app.phone || app.job_seekers?.phone || null,
+        resume_url: app.resume_url || null,
+        cover_letter: app.cover_letter || app.cover_letter || null,
+        status: app.status || app.application_status || null,
+        applied_at: appliedAt,
+        match_score: app.match_score || app.resume_match_score || app.overall_score || 0,
+        resume_match_score: app.resume_match_score || app.match_score || 0,
+        jobs: app.jobs || null,
+        job_title: app.jobs?.title || app.job_title || null,
+        job_company: app.jobs?.company || null,
+        raw: app,
+      };
+    };
 
-      // Merge job details into applications
-      applicationsWithJobs = applications.map(app => {
-        const matchedJob = jobs?.find(j => j.id === app.job_id);
-        console.log(`Application ${app.id} - Job ID: ${app.job_id}, Found: ${!!matchedJob}`);
-        
-        return {
-          ...app,
-          applied_at: app.created_at, // Add applied_at alias for frontend compatibility
-          match_score: Math.round(app.resume_match_score || app.overall_score || 0), // Add match_score for compatibility
-          jobs: matchedJob || null,
-        };
-      });
-      
-      console.log('Applications with jobs:', applicationsWithJobs.length);
-      console.log('Sample application with job:', JSON.stringify(applicationsWithJobs[0], null, 2));
+    const jobApplicationsList = (applications || []).map(normalizeJobApp);
+    const publicApplicationsList = (publicApplications || []).map(normalizeJobApp);
+
+    // Merge by unique id; if same job_id exists in both, prefer authenticated job_applications record
+    const mergedByKey = new Map();
+
+    // Add authenticated job_applications first (higher confidence)
+    for (const a of jobApplicationsList) {
+      mergedByKey.set(a.id, a);
+    }
+
+    // Add public applications unless the same job_id is already present for this seeker
+    for (const a of publicApplicationsList) {
+      // Avoid duplicate where job_applications already contains an application for same job
+      const duplicate = Array.from(mergedByKey.values()).find(m => m.job_id === a.job_id);
+      if (duplicate) continue;
+      mergedByKey.set(a.id, a);
+    }
+
+    const applicationsWithJobs = Array.from(mergedByKey.values()).sort((x, y) => {
+      const aTime = new Date(x.applied_at || 0).getTime();
+      const bTime = new Date(y.applied_at || 0).getTime();
+      return bTime - aTime; // descending
+    });
+
+    applicationsWithJobs.forEach(app => console.log(`Application ${app.id} - Job ID: ${app.job_id}, Has Job Data: ${!!app.jobs}, seeker_id: ${app.seeker_id}, email: ${app.email}`));
+
+    console.log('Applications with jobs (before filtering):', applicationsWithJobs.length);
+
+    // Ensure we only return applications that belong to this job seeker
+    const filteredForSeeker = applicationsWithJobs.filter((a) => {
+      const bySeekerId = a.seeker_id && a.seeker_id === jobSeeker.id;
+      const byEmail = a.email && jobSeeker.email && a.email.toLowerCase() === jobSeeker.email.toLowerCase();
+      return bySeekerId || byEmail;
+    });
+
+    console.log('Applications after filtering for seeker:', filteredForSeeker.length);
+    if (filteredForSeeker.length > 0) {
+      console.log('Sample filtered application:', JSON.stringify(filteredForSeeker[0], null, 2));
     }
 
     console.log('=== RETURNING APPLICATIONS ===');
-    console.log('Total:', applicationsWithJobs?.length || 0);
-    
+    console.log('Total (filtered):', filteredForSeeker?.length || 0);
+
     return Response.json({
-      applications: applicationsWithJobs || [],
-      total: applicationsWithJobs?.length || 0,
+      applications: filteredForSeeker || [],
+      total: filteredForSeeker?.length || 0,
     });
   } catch (error) {
     console.error('Error in GET /api/seeker/applications:', error);

@@ -67,7 +67,7 @@ const adminMenuItems = [
 const adminQuickActions = [
   {
     title: "Create Job",
-    url: "/admin/jobs/new",
+    url: "/admin/jobs/create",
     icon: Plus,
   },
   {

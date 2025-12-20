@@ -6,107 +6,21 @@ import { useSession, signOut } from "next-auth/react";
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
+import { useSaveJob } from "@/hooks/useSaveJob";
 
 export default function NavBar() {
   const { data: session } = useSession();
   const pathname = usePathname();
-  const [savedCount, setSavedCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  
+  // Get saved jobs count from localStorage
+  const { savedCount, refreshSavedJobs } = useSaveJob();
 
-  const fetchSavedCount = async () => {
-    try {
-      const res = await fetch("/api/seeker/saved-jobs", {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        cache: "no-store",
-      });
-      
-      console.log("Navbar - Fetch saved count response:", res.status);
-      
-      if (res.ok) {
-        const data = await res.json();
-        const count = data.savedJobs?.length || 0;
-        console.log("Navbar - Saved jobs count:", count, "Data:", data);
-        setSavedCount(count);
-      } else {
-        console.error("Navbar - Failed to fetch saved count:", res.status);
-        // Don't reset to 0 on error - keep showing last known count
-      }
-    } catch (error) {
-      console.error("Navbar - Error fetching saved count:", error);
-    }
-  };
-
+  // Refresh saved jobs count when pathname changes
   useEffect(() => {
-    let mounted = true;
-    
-    const loadSavedCount = async () => {
-      if (session?.user) {
-        try {
-          const res = await fetch("/api/seeker/saved-jobs", {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            cache: "no-store",
-          });
-          
-          if (mounted && res.ok) {
-            const data = await res.json();
-            const count = data.savedJobs?.length || 0;
-            setSavedCount(count);
-          }
-        } catch (error) {
-          console.error("Navbar - Error fetching saved count:", error);
-        }
-      }
-    };
-    
-    loadSavedCount();
-    
-    // Refresh count every 3 seconds to show real-time updates
-    const interval = setInterval(loadSavedCount, 3000);
-    return () => {
-      mounted = false;
-      clearInterval(interval);
-    };
-  }, [session]);
-
-  // Also refresh when pathname changes
-  useEffect(() => {
-    let mounted = true;
-    
-    const loadSavedCount = async () => {
-      if (session?.user) {
-        try {
-          const res = await fetch("/api/seeker/saved-jobs", {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            cache: "no-store",
-          });
-          
-          if (mounted && res.ok) {
-            const data = await res.json();
-            const count = data.savedJobs?.length || 0;
-            setSavedCount(count);
-          }
-        } catch (error) {
-          console.error("Navbar - Error fetching saved count:", error);
-        }
-      }
-    };
-    
-    loadSavedCount();
-    
-    return () => {
-      mounted = false;
-    };
-  }, [pathname, session]);
+    refreshSavedJobs();
+  }, [pathname, refreshSavedJobs]);
 
   const isActive = (path) => pathname === path;
 
@@ -150,16 +64,18 @@ export default function NavBar() {
 
           {/* Desktop Menu */}
           <div className="hidden md:flex items-center space-x-1">
-            <Link
-              href="/jobs"
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                isActive("/jobs")
-                  ? "text-cyan-600 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-900/20"
-                  : "text-gray-700 dark:text-gray-300 hover:text-cyan-600 dark:hover:text-cyan-400"
-              }`}
-            >
-              💼 All Jobs
-            </Link>
+            {!(session && (session.user.role === "hr" || session.user.role === "admin")) && (
+              <Link
+                href="/jobs"
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  isActive("/jobs")
+                    ? "text-cyan-600 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-900/20"
+                    : "text-gray-700 dark:text-gray-300 hover:text-cyan-600 dark:hover:text-cyan-400"
+                }`}
+              >
+                💼 All Jobs
+              </Link>
+            )}
 
             {session && session.user.role === "job_seeker" && (
               <>
@@ -199,7 +115,7 @@ export default function NavBar() {
               </>
             )}
 
-            {session && session.user.role === "hr" && (
+            {session && (session.user.role === "hr" || session.user.role === "admin") && (
               <>
                 <Link
                   href="/admin/dashboard"
@@ -331,9 +247,9 @@ export default function NavBar() {
 
           {/* User Info */}
           {session && (
-            <div className="p-6 border-b border-gray-200 dark:border-gray-800 bg-gradient-to-br from-cyan-50 to-teal-50 dark:from-cyan-950/30 dark:to-teal-950/30">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-800 bg-linear-to-br from-cyan-50 to-teal-50 dark:from-cyan-950/30 dark:to-teal-950/30">
               <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-500 to-teal-600 flex items-center justify-center text-white font-bold text-lg">
+                <div className="w-12 h-12 rounded-full bg-linear-to-br from-cyan-500 to-teal-600 flex items-center justify-center text-white font-bold text-lg">
                   {session.user.name?.charAt(0).toUpperCase() || session.user.email?.charAt(0).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -351,17 +267,19 @@ export default function NavBar() {
           {/* Menu Items */}
           <div className="flex-1 overflow-y-auto p-4 space-y-1">
             {/* All Jobs - Always visible */}
-            <Link
-              href="/jobs"
-              className={`flex items-center space-x-3 px-4 py-3 rounded-xl font-medium transition-all ${
-                isActive("/jobs")
-                  ? "text-cyan-700 dark:text-cyan-400 bg-cyan-100 dark:bg-cyan-900/30 shadow-sm"
-                  : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
-              }`}
-            >
-              <span className="text-xl">💼</span>
-              <span>All Jobs</span>
-            </Link>
+            {!(session && (session.user.role === "hr" || session.user.role === "admin")) && (
+              <Link
+                href="/jobs"
+                className={`flex items-center space-x-3 px-4 py-3 rounded-xl font-medium transition-all ${
+                  isActive("/jobs")
+                    ? "text-cyan-700 dark:text-cyan-400 bg-cyan-100 dark:bg-cyan-900/30 shadow-sm"
+                    : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                }`}
+              >
+                <span className="text-xl">💼</span>
+                <span>All Jobs</span>
+              </Link>
+            )}
 
             {/* Job Seeker Menu */}
             {session && session.user.role === "job_seeker" && (
@@ -412,7 +330,7 @@ export default function NavBar() {
             )}
 
             {/* HR Menu */}
-            {session && session.user.role === "hr" && (
+            {session && (session.user.role === "hr" || session.user.role === "admin") && (
               <>
                 <Link
                   href="/admin/dashboard"

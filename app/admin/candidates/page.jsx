@@ -91,13 +91,16 @@ export default function AllCandidatesPage() {
 
       // Fetch all candidates/applications
       const candidatesResponse = await fetch("/api/applications");
-      const candidatesData = await candidatesResponse.json();
+      const candidatesResponseData = await candidatesResponse.json();
+
+      // Extract applications array from the response
+      const candidatesData = candidatesResponseData.applications || [];
 
       if (candidatesResponse.ok) {
         // Sort by match score descending and created date
         const sorted = candidatesData.sort(
           (a, b) =>
-            (b.resume_match_score || 0) - (a.resume_match_score || 0) ||
+            ((b.resume_match_score || b.match_score || 0) - (a.resume_match_score || a.match_score || 0)) ||
             new Date(b.created_at) - new Date(a.created_at)
         );
         setCandidates(sorted);
@@ -465,11 +468,10 @@ export default function AllCandidatesPage() {
                       setSelectedCandidate(candidate);
                       setDialogOpen(true);
                     }}
-                    className={`bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-md hover:shadow-xl hover:border-purple-400 dark:hover:border-purple-500 transition-all duration-300 group overflow-hidden cursor-pointer transform hover:scale-102 hover:-translate-y-0.5 ${
-                      selectedCandidates.includes(candidate.id)
-                        ? "ring-2 ring-purple-500 border-purple-500"
-                        : ""
-                    }`}
+                    className={`bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-md hover:shadow-xl hover:border-purple-400 dark:hover:border-purple-500 transition-all duration-300 group overflow-hidden cursor-pointer transform hover:scale-102 hover:-translate-y-0.5 ${selectedCandidates.includes(candidate.id)
+                      ? "ring-2 ring-purple-500 border-purple-500"
+                      : ""
+                      }`}
                   >
                     {/* Header Gradient Bar */}
                     <div className="h-1 bg-linear-to-r from-purple-400 to-pink-500"></div>
@@ -573,217 +575,217 @@ export default function AllCandidatesPage() {
 
         {/* Candidate Detail Dialog */}
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto dark:bg-gray-800 dark:border-gray-700">
-          <DialogHeader>
-            <DialogTitle className="dark:text-gray-100">
-              Candidate Details
-            </DialogTitle>
-            <DialogDescription className="dark:text-gray-400">
-              Review candidate information and update status
-            </DialogDescription>
-          </DialogHeader>
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto dark:bg-gray-800 dark:border-gray-700">
+            <DialogHeader>
+              <DialogTitle className="dark:text-gray-100">
+                Candidate Details
+              </DialogTitle>
+              <DialogDescription className="dark:text-gray-400">
+                Review candidate information and update status
+              </DialogDescription>
+            </DialogHeader>
 
-          {selectedCandidate && (
-            <>
-              <div className="space-y-6">
-                {/* Header */}
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="text-2xl font-bold dark:text-gray-100">
-                      {selectedCandidate.name}
-                    </h3>
-                    <p className="text-gray-600 dark:text-gray-400 mt-1">
-                      Applied for: {getJobTitle(selectedCandidate.job_id)}
-                    </p>
-                  </div>
-                  <div
-                    className={`text-4xl font-bold px-6 py-3 rounded-lg ${getScoreColor(
-                      selectedCandidate.resume_match_score || 0
-                    )}`}
-                  >
-                    {Math.round(selectedCandidate.resume_match_score || 0)}%
-                  </div>
-                </div>
-
-                <Separator className="dark:bg-gray-700" />
-
-                {/* Contact Info */}
-                <div>
-                  <h4 className="font-semibold mb-3 dark:text-gray-100">
-                    Contact Information
-                  </h4>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div className="flex items-center gap-2">
-                      <Mail className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-                      <span className="dark:text-gray-300">
-                        {selectedCandidate.email}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Phone className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-                      <span className="dark:text-gray-300">
-                        {selectedCandidate.phone}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Professional Info */}
-                {(selectedCandidate.experience ||
-                  selectedCandidate.current_company ||
-                  selectedCandidate.education) && (
-                  <>
-                    <Separator className="dark:bg-gray-700" />
+            {selectedCandidate && (
+              <>
+                <div className="space-y-6">
+                  {/* Header */}
+                  <div className="flex items-start justify-between">
                     <div>
-                      <h4 className="font-semibold mb-3 dark:text-gray-100">
-                        Professional Information
-                      </h4>
-                      <div className="space-y-2 text-sm">
-                        {selectedCandidate.experience && (
-                          <div className="flex items-center gap-2">
-                            <Briefcase className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-                            <span className="dark:text-gray-300">
-                              {selectedCandidate.experience} years of experience
-                            </span>
-                          </div>
-                        )}
-                        {selectedCandidate.current_company && (
-                          <div className="flex items-center gap-2">
-                            <Briefcase className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-                            <span className="dark:text-gray-300">
-                              Currently at: {selectedCandidate.current_company}
-                            </span>
-                          </div>
-                        )}
-                        {selectedCandidate.education && (
-                          <div className="flex items-center gap-2">
-                            <GraduationCap className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-                            <span className="dark:text-gray-300">
-                              {selectedCandidate.education}
-                            </span>
-                          </div>
-                        )}
+                      <h3 className="text-2xl font-bold dark:text-gray-100">
+                        {selectedCandidate.name}
+                      </h3>
+                      <p className="text-gray-600 dark:text-gray-400 mt-1">
+                        Applied for: {getJobTitle(selectedCandidate.job_id)}
+                      </p>
+                    </div>
+                    <div
+                      className={`text-4xl font-bold px-6 py-3 rounded-lg ${getScoreColor(
+                        selectedCandidate.resume_match_score || 0
+                      )}`}
+                    >
+                      {Math.round(selectedCandidate.resume_match_score || 0)}%
+                    </div>
+                  </div>
+
+                  <Separator className="dark:bg-gray-700" />
+
+                  {/* Contact Info */}
+                  <div>
+                    <h4 className="font-semibold mb-3 dark:text-gray-100">
+                      Contact Information
+                    </h4>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div className="flex items-center gap-2">
+                        <Mail className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                        <span className="dark:text-gray-300">
+                          {selectedCandidate.email}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Phone className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                        <span className="dark:text-gray-300">
+                          {selectedCandidate.phone}
+                        </span>
                       </div>
                     </div>
-                  </>
-                )}
+                  </div>
 
-                {/* Skills */}
-                {selectedCandidate.skills &&
-                  selectedCandidate.skills.length > 0 && (
+                  {/* Professional Info */}
+                  {(selectedCandidate.experience ||
+                    selectedCandidate.current_company ||
+                    selectedCandidate.education) && (
+                      <>
+                        <Separator className="dark:bg-gray-700" />
+                        <div>
+                          <h4 className="font-semibold mb-3 dark:text-gray-100">
+                            Professional Information
+                          </h4>
+                          <div className="space-y-2 text-sm">
+                            {selectedCandidate.experience && (
+                              <div className="flex items-center gap-2">
+                                <Briefcase className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                                <span className="dark:text-gray-300">
+                                  {selectedCandidate.experience} years of experience
+                                </span>
+                              </div>
+                            )}
+                            {selectedCandidate.current_company && (
+                              <div className="flex items-center gap-2">
+                                <Briefcase className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                                <span className="dark:text-gray-300">
+                                  Currently at: {selectedCandidate.current_company}
+                                </span>
+                              </div>
+                            )}
+                            {selectedCandidate.education && (
+                              <div className="flex items-center gap-2">
+                                <GraduationCap className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                                <span className="dark:text-gray-300">
+                                  {selectedCandidate.education}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </>
+                    )}
+
+                  {/* Skills */}
+                  {selectedCandidate.skills &&
+                    selectedCandidate.skills.length > 0 && (
+                      <>
+                        <Separator className="dark:bg-gray-700" />
+                        <div>
+                          <h4 className="font-semibold mb-3 dark:text-gray-100">
+                            Skills
+                          </h4>
+                          <div className="flex flex-wrap gap-2">
+                            {selectedCandidate.skills.map((skill, idx) => (
+                              <Badge
+                                key={idx}
+                                variant="secondary"
+                                className="dark:bg-gray-700 dark:text-gray-300"
+                              >
+                                {skill}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    )}
+
+                  {/* Cover Letter */}
+                  {selectedCandidate.cover_letter && (
                     <>
                       <Separator className="dark:bg-gray-700" />
                       <div>
                         <h4 className="font-semibold mb-3 dark:text-gray-100">
-                          Skills
+                          Cover Letter
                         </h4>
-                        <div className="flex flex-wrap gap-2">
-                          {selectedCandidate.skills.map((skill, idx) => (
-                            <Badge
-                              key={idx}
-                              variant="secondary"
-                              className="dark:bg-gray-700 dark:text-gray-300"
-                            >
-                              {skill}
-                            </Badge>
-                          ))}
-                        </div>
+                        <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                          {selectedCandidate.cover_letter}
+                        </p>
                       </div>
                     </>
                   )}
 
-                {/* Cover Letter */}
-                {selectedCandidate.cover_letter && (
-                  <>
-                    <Separator className="dark:bg-gray-700" />
-                    <div>
-                      <h4 className="font-semibold mb-3 dark:text-gray-100">
-                        Cover Letter
-                      </h4>
-                      <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-                        {selectedCandidate.cover_letter}
-                      </p>
-                    </div>
-                  </>
-                )}
+                  {/* Resume */}
+                  {selectedCandidate.resume_url && (
+                    <>
+                      <Separator className="dark:bg-gray-700" />
+                      <div>
+                        <h4 className="font-semibold mb-3 dark:text-gray-100">
+                          Resume
+                        </h4>
+                        <Button variant="outline" size="sm" asChild>
+                          <a
+                            href={selectedCandidate.resume_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <FileText className="mr-2 h-4 w-4" />
+                            View Resume
+                          </a>
+                        </Button>
+                      </div>
+                    </>
+                  )}
 
-                {/* Resume */}
-                {selectedCandidate.resume_url && (
-                  <>
-                    <Separator className="dark:bg-gray-700" />
-                    <div>
-                      <h4 className="font-semibold mb-3 dark:text-gray-100">
-                        Resume
-                      </h4>
-                      <Button variant="outline" size="sm" asChild>
-                        <a
-                          href={selectedCandidate.resume_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                  {/* Actions */}
+                  <Separator className="dark:bg-gray-700" />
+                  <div>
+                    <h4 className="font-semibold mb-3 dark:text-gray-100">
+                      Update Status
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedCandidate.status !== "shortlisted" && (
+                        <Button
+                          variant="default"
+                          onClick={() =>
+                            updateCandidateStatus(
+                              selectedCandidate.id,
+                              "shortlisted"
+                            )
+                          }
                         >
-                          <FileText className="mr-2 h-4 w-4" />
-                          View Resume
-                        </a>
-                      </Button>
+                          <CheckCircle className="mr-2 h-4 w-4" />
+                          Shortlist
+                        </Button>
+                      )}
+                      {selectedCandidate.status !== "interviewing" && (
+                        <Button
+                          variant="outline"
+                          onClick={() =>
+                            updateCandidateStatus(
+                              selectedCandidate.id,
+                              "interviewing"
+                            )
+                          }
+                        >
+                          Schedule Interview
+                        </Button>
+                      )}
+                      {selectedCandidate.status !== "rejected" && (
+                        <Button
+                          variant="destructive"
+                          onClick={() =>
+                            updateCandidateStatus(
+                              selectedCandidate.id,
+                              "rejected"
+                            )
+                          }
+                        >
+                          <X className="mr-2 h-4 w-4" />
+                          Reject
+                        </Button>
+                      )}
                     </div>
-                  </>
-                )}
-
-                {/* Actions */}
-                <Separator className="dark:bg-gray-700" />
-                <div>
-                  <h4 className="font-semibold mb-3 dark:text-gray-100">
-                    Update Status
-                  </h4>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedCandidate.status !== "shortlisted" && (
-                      <Button
-                        variant="default"
-                        onClick={() =>
-                          updateCandidateStatus(
-                            selectedCandidate.id,
-                            "shortlisted"
-                          )
-                        }
-                      >
-                        <CheckCircle className="mr-2 h-4 w-4" />
-                        Shortlist
-                      </Button>
-                    )}
-                    {selectedCandidate.status !== "interviewing" && (
-                      <Button
-                        variant="outline"
-                        onClick={() =>
-                          updateCandidateStatus(
-                            selectedCandidate.id,
-                            "interviewing"
-                          )
-                        }
-                      >
-                        Schedule Interview
-                      </Button>
-                    )}
-                    {selectedCandidate.status !== "rejected" && (
-                      <Button
-                        variant="destructive"
-                        onClick={() =>
-                          updateCandidateStatus(
-                            selectedCandidate.id,
-                            "rejected"
-                          )
-                        }
-                      >
-                        <X className="mr-2 h-4 w-4" />
-                        Reject
-                      </Button>
-                    )}
                   </div>
                 </div>
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
       </main>
     </div>
   );

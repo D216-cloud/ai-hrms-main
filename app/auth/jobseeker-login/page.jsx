@@ -292,7 +292,7 @@ function JobSeekerLoginForm() {
                 <Button 
                   type="submit" 
                   disabled={loading}
-                  className="w-full h-12 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-200"
+                  className="w-full h-12 bg-linear-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-200"
                 >
                   {loading ? (
                     <span className="flex items-center justify-center">

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import NavBar from "@/components/NavBar";
+import { useSaveJob } from "@/hooks/useSaveJob";
 
 export default function AllJobsPage() {
   const { data: session } = useSession();
@@ -12,9 +13,10 @@ export default function AllJobsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterLocation, setFilterLocation] = useState("");
   const [filterType, setFilterType] = useState("");
-  const [savedJobs, setSavedJobs] = useState(new Set());
-  const [savingJobId, setSavingJobId] = useState(null);
   const [saveMessage, setSaveMessage] = useState(null);
+  
+  // Save job hook with localStorage
+  const { toggleSaveJob, savedJobs, loading: savingJob } = useSaveJob();
 
   // Define only 4 cities
   const ALLOWED_LOCATIONS = ["Amdavad", "Bangalore", "Hyderabad", "Mumbai"];
@@ -33,17 +35,6 @@ export default function AllJobsPage() {
           const data = await response.json();
           const jobsData = Array.isArray(data) ? data : [];
           setJobs(jobsData);
-          
-          // Load saved status from jobs table
-          if (session?.user?.role === "job_seeker") {
-            // Mark jobs that have saved_job = true
-            const savedJobIds = new Set(
-              jobsData
-                .filter(job => job.saved_job === true)
-                .map(job => job._id || job.id)
-            );
-            setSavedJobs(savedJobIds);
-          }
         } else {
           setJobs([]);
         }
@@ -58,67 +49,30 @@ export default function AllJobsPage() {
     fetchJobs();
   }, [session]);
 
-  const handleSaveJob = async (jobId, event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    
-    // If user is not authenticated, redirect to login
-    if (!session) {
-      setSaveMessage("❌ Please login to save jobs");
-      setTimeout(() => setSaveMessage(null), 2000);
-      return;
+  // Handle save/unsave job with localStorage
+  const handleSaveJob = (job, event) => {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
     }
 
-    if (session.user.role !== "job_seeker") {
-      setSaveMessage("❌ Only job seekers can save jobs");
-      setTimeout(() => setSaveMessage(null), 2000);
-      return;
-    }
+    const result = toggleSaveJob(job);
     
-    setSavingJobId(jobId);
-    
-    try {
-      const isCurrentlySaved = savedJobs.has(jobId);
-      
-      // Call API to save/unsave
-      const res = await fetch("/api/seeker/toggle-save-job", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          jobId,
-          saved: !isCurrentlySaved,
-        }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to save job");
-      }
-
-      // Update local state
-      const newSavedJobs = new Set(savedJobs);
-      if (isCurrentlySaved) {
-        newSavedJobs.delete(jobId);
-        setSaveMessage("Removed from saved");
-      } else {
-        newSavedJobs.add(jobId);
-        setSaveMessage("✅ Saved to Supabase!");
-      }
-      
-      setSavedJobs(newSavedJobs);
-      
-      // Auto-hide message after 2 seconds
-      setTimeout(() => {
-        setSaveMessage(null);
-      }, 2000);
-      
-    } catch (error) {
-      console.error("Error saving job:", error);
-      setSaveMessage("❌ Error saving job");
-      setTimeout(() => setSaveMessage(null), 2000);
-    } finally {
-      setTimeout(() => setSavingJobId(null), 300);
+    if (result.success) {
+      setSaveMessage(result.message);
+    } else {
+      setSaveMessage(result.message);
     }
+
+    // Auto-hide message after 2 seconds
+    setTimeout(() => {
+      setSaveMessage(null);
+    }, 2000);
+  };
+
+  // Check if a job is saved
+  const isJobSaved = (jobId) => {
+    return savedJobs.some(job => job._id === jobId || job.id === jobId);
   };
 
   const filteredJobs = jobs.filter((job) => {
@@ -169,7 +123,7 @@ export default function AllJobsPage() {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Filters Sidebar */}
           <div className="lg:col-span-1 animate-in fade-in slide-in-from-left duration-500 delay-100">
-            <div className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-850 p-6 rounded-2xl border-2 border-gray-200 dark:border-gray-700 shadow-xl sticky top-24">
+            <div className="bg-linear-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-850 p-6 rounded-2xl border-2 border-gray-200 dark:border-gray-700 shadow-xl sticky top-24">
               <div className="flex items-center gap-3 mb-8 pb-6 border-b-2 border-gray-200 dark:border-gray-700">
                 <span className="text-3xl">🎯</span>
                 <h3 className="text-xl font-bold text-gray-900 dark:text-white">
@@ -291,7 +245,7 @@ export default function AllJobsPage() {
                   setFilterLocation("");
                   setFilterType("");
                 }}
-                className="w-full px-4 py-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl font-bold text-sm transition-all shadow-md hover:shadow-lg transform hover:scale-105 duration-300 flex items-center justify-center gap-2"
+                className="w-full px-4 py-3 bg-linear-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl font-bold text-sm transition-all shadow-md hover:shadow-lg transform hover:scale-105 duration-300 flex items-center justify-center gap-2"
               >
                 <span>🔄</span> Reset Filters
               </button>
@@ -369,16 +323,11 @@ export default function AllJobsPage() {
                             {job.company || "Company"}
                           </p>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <button className="text-3xl hover:scale-125 transition-transform duration-200 hover:animate-spin">
-                            ⭐
-                          </button>
-                        </div>
                       </div>
 
                       {/* Job Details Grid */}
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                        <div className="bg-gradient-to-br from-teal-50 to-cyan-50 dark:from-teal-900/20 dark:to-cyan-900/20 p-4 rounded-xl border border-teal-200 dark:border-teal-700/50">
+                        <div className="bg-linear-to-br from-teal-50 to-cyan-50 dark:from-teal-900/20 dark:to-cyan-900/20 p-4 rounded-xl border border-teal-200 dark:border-teal-700/50">
                           <p className="text-xs text-teal-700 dark:text-teal-400 font-bold uppercase tracking-wider mb-1">Location</p>
                           <div className="flex items-center gap-2">
                             <span className="text-xl">{LOCATION_ICONS[job.location] || "📍"}</span>
@@ -387,19 +336,19 @@ export default function AllJobsPage() {
                             </p>
                           </div>
                         </div>
-                        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-4 rounded-xl border border-blue-200 dark:border-blue-700/50">
+                        <div className="bg-linear-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-4 rounded-xl border border-blue-200 dark:border-blue-700/50">
                           <p className="text-xs text-blue-700 dark:text-blue-400 font-bold uppercase tracking-wider mb-1">Type</p>
                           <p className="text-sm font-bold text-gray-900 dark:text-white">
                             {job.type || "Full-time"}
                           </p>
                         </div>
-                        <div className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 p-4 rounded-xl border border-green-200 dark:border-green-700/50">
+                        <div className="bg-linear-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 p-4 rounded-xl border border-green-200 dark:border-green-700/50">
                           <p className="text-xs text-green-700 dark:text-green-400 font-bold uppercase tracking-wider mb-1">Salary</p>
                           <p className="text-sm font-bold text-gray-900 dark:text-white">
                             {job.salary || "Competitive"}
                           </p>
                         </div>
-                        <div className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 p-4 rounded-xl border border-purple-200 dark:border-purple-700/50">
+                        <div className="bg-linear-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 p-4 rounded-xl border border-purple-200 dark:border-purple-700/50">
                           <p className="text-xs text-purple-700 dark:text-purple-400 font-bold uppercase tracking-wider mb-1">Experience</p>
                           <p className="text-sm font-bold text-gray-900 dark:text-white">
                             {job.experience || "Entry"}
@@ -422,12 +371,12 @@ export default function AllJobsPage() {
                           {job.type || "Full-time"}
                         </span>
                         {job.experience && (
-                          <span className="px-3 py-1.5 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/30 dark:to-pink-900/30 text-purple-700 dark:text-purple-300 rounded-full text-xs font-bold border border-purple-200 dark:border-purple-700/50">
+                          <span className="px-3 py-1.5 bg-linear-to-r from-purple-50 to-pink-50 dark:from-purple-900/30 dark:to-pink-900/30 text-purple-700 dark:text-purple-300 rounded-full text-xs font-bold border border-purple-200 dark:border-purple-700/50">
                             {job.experience} Experience
                           </span>
                         )}
                         {job.skills && job.skills.length > 0 && (
-                          <span className="px-3 py-1.5 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/30 dark:to-indigo-900/30 text-blue-700 dark:text-blue-300 rounded-full text-xs font-bold border border-blue-200 dark:border-blue-700/50">
+                          <span className="px-3 py-1.5 bg-linear-to-r from-blue-50 to-indigo-50 dark:from-blue-900/30 dark:to-indigo-900/30 text-blue-700 dark:text-blue-300 rounded-full text-xs font-bold border border-blue-200 dark:border-blue-700/50">
                             {job.skills.length} Required Skills
                           </span>
                         )}
@@ -442,23 +391,16 @@ export default function AllJobsPage() {
                           <span>📖</span> View Details
                         </Link>
                         <button
-                          onClick={(e) => handleSaveJob(job._id, e)}
+                          onClick={(e) => handleSaveJob(job, e)}
                           className={`px-6 py-3 rounded-xl font-bold text-xl transition-all duration-300 transform ${
-                            savedJobs.has(job._id)
+                            isJobSaved(job._id)
                               ? "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 scale-110"
                               : "bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 hover:scale-110"
-                          } ${savingJobId === job._id ? "animate-pulse" : ""}`}
-                          title={savedJobs.has(job._id) ? "Remove from saved" : "Save job"}
+                          } ${savingJob ? "animate-pulse" : ""}`}
+                          title={isJobSaved(job._id) ? "Remove from saved" : "Save job"}
                         >
-                          {savingJobId === job._id ? "✨" : savedJobs.has(job._id) ? "❤️" : "🤍"}
+                          {savingJob ? "✨" : isJobSaved(job._id) ? "❤️" : "🤍"}
                         </button>
-                        <Link
-                          href={`/jobs/${job._id}`}
-                          className="px-6 py-3 bg-blue-100 dark:bg-blue-900/30 hover:bg-blue-200 dark:hover:bg-blue-900/50 hover:scale-110 rounded-xl font-bold text-blue-700 dark:text-blue-300 transition-all text-xl duration-200"
-                          title="Share job"
-                        >
-                          🔗
-                        </Link>
                       </div>
                     </div>
                   </div>
@@ -473,7 +415,7 @@ export default function AllJobsPage() {
       {saveMessage && (
         <div className="fixed bottom-8 right-8 z-50 animate-in slide-in-from-bottom fade-in duration-300">
           <div className="bg-white dark:bg-gray-800 border-2 border-teal-500 dark:border-teal-400 rounded-2xl px-8 py-4 shadow-2xl flex items-center gap-3">
-            <span className="text-2xl animate-bounce">{saveMessage.includes("✅") ? "✅" : "❌"}</span>
+            <span className="text-2xl">{saveMessage.includes("success") || saveMessage.includes("saved") ? "✅" : "❤️"}</span>
             <span className="font-bold text-gray-900 dark:text-white">{saveMessage}</span>
           </div>
         </div>

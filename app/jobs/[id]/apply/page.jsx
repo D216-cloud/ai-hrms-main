@@ -74,19 +74,19 @@ export default function ApplyPage() {
   const fetchJob = async () => {
     try {
       const response = await fetch(`/api/jobs/${params.id}`);
-      
+
       // Check if the response is OK and if the content type is JSON
       const contentType = response.headers.get("content-type");
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       if (!contentType || !contentType.includes("application/json")) {
         const text = await response.text();
         console.error("Expected JSON but received:", text);
         throw new Error("Received non-JSON response from server");
       }
-      
+
       const data = await response.json();
 
       if (response.ok) {
@@ -106,6 +106,11 @@ export default function ApplyPage() {
 
   const fetchProfileResume = async () => {
     try {
+      // First, set the email from session (locked to logged-in user)
+      if (session?.user?.email) {
+        setFormData((prev) => ({ ...prev, email: session.user.email }));
+      }
+
       const response = await fetch("/api/profile");
       if (response.ok) {
         const data = await response.json();
@@ -117,7 +122,7 @@ export default function ApplyPage() {
           });
           // Auto-fill form data from profile
           if (data.name) setFormData((prev) => ({ ...prev, name: data.name }));
-          if (data.email) setFormData((prev) => ({ ...prev, email: data.email }));
+          // Email is already set from session above - don't override it
           if (data.phone) setFormData((prev) => ({ ...prev, phone: data.phone }));
           if (data.currentCompany) setFormData((prev) => ({ ...prev, currentCompany: data.currentCompany }));
           if (data.yearsOfExperience) setFormData((prev) => ({ ...prev, experience: data.yearsOfExperience }));
@@ -151,13 +156,13 @@ export default function ApplyPage() {
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       "application/msword"
     ];
-    
-    const isFileTypeValid = validTypes.includes(file.type) || 
-      file.type.includes("pdf") || 
-      file.type.includes("wordprocessingml.document") || 
+
+    const isFileTypeValid = validTypes.includes(file.type) ||
+      file.type.includes("pdf") ||
+      file.type.includes("wordprocessingml.document") ||
       file.type.includes("docx") ||
       file.type.includes("msword");
-      
+
     console.log("File type validation:", {
       fileType: file.type,
       isValid: isFileTypeValid,
@@ -179,7 +184,7 @@ export default function ApplyPage() {
     setResumeFile(file);
     setUseProfileResume(false);
     setAutoFillComplete(false);
-    
+
     // Call parse resume immediately
     try {
       await parseResume(file);
@@ -226,12 +231,12 @@ export default function ApplyPage() {
           // If we can't parse the error response, use the status text
           errorMessage = response.statusText || errorMessage;
         }
-        
+
         // Handle "corrupted" files more gracefully
-        if (errorMessage.includes("corrupted") || errorMessage.includes("Corrupted") || 
-            errorMessage.includes("difficulty parsing") || errorMessage.includes("common with certain PDF formats") ||
-            errorMessage.includes("common with certain DOCX formats") || errorMessage.includes("convert to DOCX format") ||
-            errorMessage.includes("better compatibility")) {
+        if (errorMessage.includes("corrupted") || errorMessage.includes("Corrupted") ||
+          errorMessage.includes("difficulty parsing") || errorMessage.includes("common with certain PDF formats") ||
+          errorMessage.includes("common with certain DOCX formats") || errorMessage.includes("convert to DOCX format") ||
+          errorMessage.includes("better compatibility")) {
           // This is actually a success case - the file was processed but had parsing issues
           toast.success("File processed successfully! The system had difficulty parsing your resume file, but this is common with certain file formats. Please fill in your details below.");
           setParsing(false);
@@ -257,7 +262,7 @@ export default function ApplyPage() {
         console.error("Error parsing response JSON:", parseError);
         throw new Error("Invalid response from server. Please try again.");
       }
-      
+
       console.log("Parse API data received:", data);
 
       // Safely extract company name from experience array
@@ -293,9 +298,10 @@ export default function ApplyPage() {
       }
 
       // Build form data object with safe string conversion
+      // If user is logged in, ALWAYS use their session email (don't override)
       const newFormData = {
         name: data.name ? String(data.name).trim() : "",
-        email: data.email ? String(data.email).trim() : "",
+        email: session?.user?.email || (data.email ? String(data.email).trim() : ""),
         phone: data.phone ? String(data.phone).trim() : "",
         currentCompany: companyName ? String(companyName).trim() : "",
         experience: yearsExp > 0 ? String(yearsExp) : "",
@@ -306,15 +312,15 @@ export default function ApplyPage() {
 
       console.log("✅ Extracted form data:", newFormData);
       console.log("📋 Name:", newFormData.name);
-      console.log("📧 Email:", newFormData.email);
+      console.log("📧 Email:", newFormData.email, session?.user?.email ? "(locked to session)" : "(from resume)");
       console.log("📱 Phone:", newFormData.phone);
-      
+
       // Set form data - this will update React state
       setFormData(newFormData);
 
       // Mark auto-fill as complete
       setAutoFillComplete(true);
-      
+
       // Also directly update the input elements via DOM for immediate visual feedback
       setTimeout(() => {
         const nameInput = document.getElementById('name');
@@ -373,7 +379,7 @@ export default function ApplyPage() {
       if (newFormData.skills) filledFields.push("Skills");
       if (newFormData.education) filledFields.push("Education");
 
-      const message = filledFields.length > 0 
+      const message = filledFields.length > 0
         ? `Resume parsed! Auto-filled: ${filledFields.join(", ")}. Please review and edit.`
         : "Resume parsed successfully! Please review and edit the details below.";
 
@@ -382,7 +388,7 @@ export default function ApplyPage() {
       console.error("Error parsing resume:", error);
       // Provide more user-friendly error messages with solutions
       let userMessage = error.message || "Failed to parse resume. Please fill the form manually.";
-      
+
       // Add helpful suggestions for common issues
       if (userMessage.includes("corrupted") || userMessage.includes("Corrupted")) {
         userMessage = "File processed successfully! The system had difficulty parsing your resume file, but this is common with certain file formats. Please fill in your details below.";
@@ -394,7 +400,7 @@ export default function ApplyPage() {
       } else if (userMessage.includes("Invalid")) {
         userMessage += " Please ensure you're uploading a valid PDF or DOCX file created with standard software like Microsoft Word or Google Docs.";
       }
-      
+
       toast.error(userMessage);
     } finally {
       setParsing(false);
@@ -431,13 +437,13 @@ export default function ApplyPage() {
     try {
       // Create FormData for file upload
       const submitData = new FormData();
-      
+
       if (resumeFile) {
         submitData.append("resume", resumeFile);
       } else if (useProfileResume && profileResume) {
         submitData.append("profileResumeUrl", profileResume.url);
       }
-      
+
       // Only append text/string values from formData, skip any file objects
       Object.keys(formData).forEach((key) => {
         const value = formData[key];
@@ -464,19 +470,17 @@ export default function ApplyPage() {
         if (response.status === 400) {
           if (data.error && data.error.includes("password")) {
             throw new Error("Password-protected files are not supported. Please remove the password and try again.");
-          } else if (data.error && (data.error.includes("corrupted") || data.error.includes("Corrupted") || 
-                     data.error.includes("difficulty parsing") || data.error.includes("common with certain PDF formats") ||
-                     data.error.includes("convert to DOCX format") || data.error.includes("better compatibility"))) {
+          } else if (data.error && (data.error.includes("corrupted") || data.error.includes("Corrupted") ||
+            data.error.includes("difficulty parsing") || data.error.includes("common with certain PDF formats") ||
+            data.error.includes("convert to DOCX format") || data.error.includes("better compatibility"))) {
             // This is actually a success case - the file was processed but had parsing issues
             toast.success("Application submitted successfully! The system had difficulty parsing your resume file, but your application was submitted with the information you provided.");
             // Redirect to success page
-            const successUrl = `/jobs/${params.id}/apply/success?token=${
-              data.application?.token || 'unknown'
-            }&jobTitle=${encodeURIComponent(
-              data.application?.jobTitle || job.title
-            )}&email=${encodeURIComponent(data.application?.email || formData.email)}&matchScore=${
-              data.application?.matchScore || 0
-            }`;
+            const successUrl = `/jobs/${params.id}/apply/success?token=${data.application?.token || 'unknown'
+              }&jobTitle=${encodeURIComponent(
+                data.application?.jobTitle || job.title
+              )}&email=${encodeURIComponent(data.application?.email || formData.email)}&matchScore=${data.application?.matchScore || 0
+              }`;
             router.push(successUrl);
             return; // Don't show error, continue with success
           } else if (data.error && data.error.includes("Invalid")) {
@@ -495,19 +499,17 @@ export default function ApplyPage() {
       toast.success("Application submitted successfully!");
 
       // Redirect to success page with application details
-      const successUrl = `/jobs/${params.id}/apply/success?token=${
-        data.application.token
-      }&jobTitle=${encodeURIComponent(
-        data.application.jobTitle
-      )}&email=${encodeURIComponent(data.application.email)}&matchScore=${
-        data.application.matchScore
-      }`;
+      const successUrl = `/jobs/${params.id}/apply/success?token=${data.application.token
+        }&jobTitle=${encodeURIComponent(
+          data.application.jobTitle
+        )}&email=${encodeURIComponent(data.application.email)}&matchScore=${data.application.matchScore
+        }`;
       router.push(successUrl);
     } catch (error) {
       console.error("Error submitting application:", error);
       // Provide user-friendly error messages
       let errorMessage = "Failed to submit application. Please try again.";
-      
+
       if (error.message) {
         // Don't show internal error details to users in production
         if (process.env.NODE_ENV === 'development' || error.message.includes("Please")) {
@@ -515,8 +517,8 @@ export default function ApplyPage() {
         } else if (error.message.includes("password")) {
           errorMessage = "Password-protected files are not supported. Please remove the password and try again.";
         } else if (error.message.includes("corrupted") || error.message.includes("Corrupted") ||
-                   error.message.includes("difficulty parsing") || error.message.includes("common with certain PDF formats") ||
-                   error.message.includes("convert to DOCX format") || error.message.includes("better compatibility")) {
+          error.message.includes("difficulty parsing") || error.message.includes("common with certain PDF formats") ||
+          error.message.includes("convert to DOCX format") || error.message.includes("better compatibility")) {
           // This is actually a success case - the file was processed but had parsing issues
           toast.success("Application submitted successfully! The system had difficulty parsing your resume file, but your application was submitted with the information you provided.");
           // Redirect to success page
@@ -530,7 +532,7 @@ export default function ApplyPage() {
           errorMessage = "An error occurred while submitting your application. Please try again.";
         }
       }
-      
+
       toast.error(errorMessage);
     } finally {
       setSubmitting(false);
@@ -818,12 +820,17 @@ export default function ApplyPage() {
                         required
                       />
                     </div>
-                    <div className={`space-y-2 p-3 rounded-lg transition-all ${formData.email && autoFillComplete ? 'bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-700/30' : ''}`}>
+                    <div className={`space-y-2 p-3 rounded-lg transition-all ${session?.user?.email ? 'bg-blue-50 dark:bg-blue-900/10 border-2 border-blue-300 dark:border-blue-700/50' : formData.email && autoFillComplete ? 'bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-700/30' : ''}`}>
                       <div className="flex items-center justify-between">
-                        <Label htmlFor="email" className="text-gray-900 dark:text-white font-semibold">
+                        <Label htmlFor="email" className="text-gray-900 dark:text-white font-semibold flex items-center gap-2">
                           Email <span className="text-red-500">*</span>
+                          {session?.user?.email && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-xs font-semibold">
+                              🔒 Locked to your account
+                            </span>
+                          )}
                         </Label>
-                        {formData.email && autoFillComplete && (
+                        {formData.email && autoFillComplete && !session?.user?.email && (
                           <Check className="w-4 h-4 text-green-600" />
                         )}
                       </div>
@@ -834,9 +841,18 @@ export default function ApplyPage() {
                         value={String(formData.email || '')}
                         onChange={handleChange}
                         placeholder="your@email.com"
-                        className="border-gray-300 dark:border-gray-600 dark:bg-gray-700"
+                        className={`border-gray-300 dark:border-gray-600 dark:bg-gray-700 ${session?.user?.email ? 'bg-blue-50 dark:bg-blue-900/20 cursor-not-allowed opacity-80' : ''}`}
+                        disabled={!!session?.user?.email}
+                        readOnly={!!session?.user?.email}
                         required
+                        title={session?.user?.email ? 'This email is locked to your logged-in account' : ''}
                       />
+                      {session?.user?.email && (
+                        <p className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" />
+                          Applications will be linked to your account: <strong>{session.user.email}</strong>
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className={`space-y-2 p-3 rounded-lg transition-all ${formData.phone && autoFillComplete ? 'bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-700/30' : ''}`}>

@@ -154,6 +154,7 @@ ai-hrms/
 ### For HR/Recruiters
 - Create jobs with AI-generated descriptions
 - View ranked candidates by match percentage
+- HR users only see candidates for jobs they posted (admins see all)
 - Auto-graded technical assessments
 - Interview transcript evaluation
 - Comprehensive analytics dashboard

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
 import { v4 as uuidv4 } from 'uuid';
 
@@ -16,17 +16,37 @@ export async function GET(request) {
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
+    const createdByParam = searchParams.get("created_by");
 
     let query = supabaseAdmin.from("jobs").select("*");
 
     // If not authenticated or not hr/admin, show only active jobs
     const isHROrAdmin = session?.user?.role === "hr" || session?.user?.role === "admin";
-    
+
     if (!isHROrAdmin) {
+      // Public viewers only see active jobs
       query = query.eq("status", "active");
-    } else if (status) {
-      // Filter by status for hr/admin
-      query = query.eq("status", status);
+    } else {
+      // HR/Admin can optionally filter by status
+      if (status) {
+        query = query.eq("status", status);
+      }
+
+      // For HR users, filter by their email or UUID
+      if (session.user.role === "hr") {
+        const ownerEmail = session.user.email;
+        const userId = session.user.id;
+
+        // Build OR condition for hr_email or created_by
+        if (userId) {
+          query = query.or(`hr_email.eq.${ownerEmail},created_by.eq.${userId}`);
+        } else {
+          query = query.eq("hr_email", ownerEmail);
+        }
+      } else if (session.user.role === "admin" && createdByParam) {
+        // Admins may filter by any created_by value if specified
+        query = query.eq("created_by", createdByParam);
+      }
     }
 
     const { data: jobs, error } = await query.order("created_at", {
@@ -51,8 +71,8 @@ export async function GET(request) {
       title: job.title || "Untitled Position",
       company: job.company || "Company",
       location: job.location || "Remote",
-      salary: job.salary_min && job.salary_max 
-        ? `$${job.salary_min} - $${job.salary_max}` 
+      salary: job.salary_min && job.salary_max
+        ? `$${job.salary_min} - $${job.salary_max}`
         : job.salary || "Competitive",
       type: job.type || "Full-time",
       experience: job.experience_min && job.experience_max
@@ -76,9 +96,9 @@ export async function GET(request) {
 // POST /api/jobs - Create a new job
 export async function POST(request) {
   console.log("=== JOB CREATION STARTED ===");
-  
+
   let body = null;
-  
+
   try {
     body = await request.json();
     console.log("✓ Request body parsed successfully");
@@ -226,20 +246,19 @@ export async function POST(request) {
       console.log("⚠ No valid user ID, job will be created without created_by");
     }
 
-    console.log("✓ Job data prepared:", {
-      title: jobData.title,
-      location: jobData.location,
-      experience: `${jobData.experience_min}-${jobData.experience_max}`,
-      skills_count: jobData.skills.length,
-      status: jobData.status,
-      has_creator: !!jobData.created_by
-    });
+    // Add HR email from session
+    if (session.user.email) {
+      jobData.hr_email = session.user.email;
+      console.log("✓ HR email:", session.user.email);
+    } else {
+      console.log("⚠ No email in session, job will be created without hr_email");
+    }
 
     // Step 6: Insert into database with enhanced retry and error handling
     console.log("Step 6: Inserting into database...");
     console.log("Using Supabase URL:", process.env.NEXT_PUBLIC_SUPABASE_URL?.substring(0, 50) + "...");
     console.log("Has service role key:", !!process.env.SUPABASE_SERVICE_ROLE_KEY);
-    
+
     let job;
     let dbError;
     let retryCount = 0;
@@ -249,7 +268,7 @@ export async function POST(request) {
     while (retryCount < maxRetries) {
       try {
         console.log(`Insert attempt ${retryCount + 1}/${maxRetries}...`);
-        
+
         const result = await Promise.race([
           supabaseAdmin
             .from("jobs")
@@ -260,10 +279,10 @@ export async function POST(request) {
             setTimeout(() => reject(new Error("Request timeout after 10s")), 10000)
           ),
         ]);
-        
+
         job = result.data;
         dbError = result.error;
-        
+
         if (!dbError) {
           console.log("✓ Job inserted successfully on attempt", retryCount + 1);
           break;
@@ -280,7 +299,7 @@ export async function POST(request) {
         }
       } catch (e) {
         console.error(`Attempt ${retryCount + 1} exception:`, e.message);
-        
+
         if (retryCount < maxRetries - 1) {
           retryCount++;
           const waitTime = 1000 * (retryCount + 1);
@@ -356,7 +375,7 @@ export async function POST(request) {
       if (dbError.code === "42P01") {
         console.error("⚠️ Table not found error");
         return NextResponse.json(
-          { 
+          {
             error: "Database table not found. Please run the migration.",
             hint: "Run the SQL in migrations/init-database.sql in Supabase",
             code: "TABLE_NOT_FOUND",
@@ -410,7 +429,7 @@ export async function POST(request) {
     if (!job) {
       console.error("✗ No job returned from database");
       return NextResponse.json(
-        { 
+        {
           error: "Job creation failed - no data returned",
           code: "NO_DATA_RETURNED",
           hint: "The database operation completed but no job data was returned"
@@ -428,7 +447,7 @@ export async function POST(request) {
         success: true,
         message: `Job ${status === "active" ? "published" : "saved as draft"} successfully!`,
         job: job
-      }, 
+      },
       { status: 201 }
     );
 
@@ -437,7 +456,7 @@ export async function POST(request) {
     console.error("Error name:", error.name);
     console.error("Error message:", error.message);
     console.error("Error stack:", error.stack);
-    
+
     return NextResponse.json(
       {
         error: "An unexpected error occurred while creating the job",

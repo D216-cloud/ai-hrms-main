@@ -13,6 +13,7 @@ import {
 export default function HRDashboardPage() {
   const { data: session } = useSession();
   const [stats, setStats] = useState({
+    postedJobs: 0,
     activeJobs: 0,
     totalApplications: 0,
     shortlisted: 0,
@@ -23,20 +24,35 @@ export default function HRDashboardPage() {
   const [recentApplications, setRecentApplications] = useState([]);
 
   useEffect(() => {
-    fetchDashboardStats();
-  }, []);
+    // Re-fetch when session becomes available or changes so newly created jobs appear
+    if (session) fetchDashboardStats();
+  }, [session]);
 
   const fetchDashboardStats = async () => {
     try {
-      const [jobsRes, appsRes] = await Promise.all([
-        fetch("/api/jobs?status=active"),
+      // Build URLs: fetch all jobs (scoped to HR when non-admin) and active jobs
+      const jobsAllUrl = session && session.user?.role !== "admin"
+        ? `/api/jobs?created_by=${encodeURIComponent(session.user.email)}`
+        : `/api/jobs`;
+
+      const jobsActiveUrl = session && session.user?.role !== "admin"
+        ? `/api/jobs?status=active&created_by=${encodeURIComponent(session.user.email)}`
+        : `/api/jobs?status=active`;
+
+      const [jobsAllRes, jobsActiveRes, appsRes] = await Promise.all([
+        fetch(jobsAllUrl),
+        fetch(jobsActiveUrl),
         fetch("/api/applications"),
       ]);
 
-      const jobs = await jobsRes.json();
-      const apps = await appsRes.json();
+      const jobsAll = await jobsAllRes.json();
+      const jobsActive = await jobsActiveRes.json();
+      const appsData = await appsRes.json();
 
-      if (jobsRes.ok && appsRes.ok) {
+      // Extract applications array from the response
+      const apps = appsData.applications || [];
+
+      if (jobsAllRes.ok && jobsActiveRes.ok && appsRes.ok) {
         const shortlistedCount = apps.filter(
           (app) => app.status === "shortlisted"
         ).length;
@@ -50,15 +66,24 @@ export default function HRDashboardPage() {
           );
         }).length;
 
+        // Sort all jobs by created_at descending for "latest" list
+        const sortedJobs = Array.isArray(jobsAll)
+          ? jobsAll.slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+          : [];
+
         setStats({
-          activeJobs: jobs.length || 0,
+          postedJobs: sortedJobs.length || 0,
+          activeJobs: Array.isArray(jobsActive) ? jobsActive.length : 0,
           totalApplications: apps.length || 0,
           shortlisted: shortlistedCount,
           thisMonth: thisMonthCount,
         });
 
-        setRecentJobs(jobs.slice(0, 6));
+        // Show only the latest 3 jobs on dashboard
+        setRecentJobs(sortedJobs.slice(0, 3));
         setRecentApplications(apps.slice(0, 6));
+      } else {
+        console.error("Failed to fetch dashboard data", { jobsAllRes, jobsActiveRes, appsRes });
       }
     } catch (error) {
       console.error("Error fetching dashboard stats:", error);
@@ -113,11 +138,11 @@ export default function HRDashboardPage() {
                 <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-900/30 mb-3">
                   <span className="text-xl">💼</span>
                 </div>
-                <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Active Jobs</p>
-                <p className="text-4xl font-bold text-slate-900 dark:text-white mt-2">{stats.activeJobs}</p>
+                <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Posted Jobs</p>
+                <p className="text-4xl font-bold text-slate-900 dark:text-white mt-2">{stats.postedJobs}</p>
               </div>
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-500 mt-3 font-semibold">+2 this week</p>
+            <p className="text-xs text-slate-500 dark:text-slate-500 mt-3 font-semibold">{stats.activeJobs} active</p>
           </div>
 
           {/* Dashboard */}
@@ -167,8 +192,8 @@ export default function HRDashboardPage() {
         <div className="mb-16 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-200">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
             <div>
-              <h2 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white">💼 Active Job Postings</h2>
-              <p className="text-sm text-slate-600 dark:text-slate-400 mt-2">Manage your open positions</p>
+              <h2 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white">💼 Your Latest Job Postings</h2>
+              <p className="text-sm text-slate-600 dark:text-slate-400 mt-2">Manage your posted positions (showing latest 3)</p>
             </div>
             <Link href="/admin/jobs/create" className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-linear-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white rounded-xl font-semibold text-sm transition-all shadow-lg hover:shadow-xl transform hover:scale-105 duration-300 w-full md:w-auto">
               <Plus className="w-4 h-4" />
@@ -180,7 +205,7 @@ export default function HRDashboardPage() {
           {recentJobs.length === 0 ? (
             <div className="bg-white dark:bg-slate-800 p-12 md:p-16 rounded-3xl border-2 border-dashed border-slate-300 dark:border-slate-700 text-center">
               <div className="text-6xl md:text-7xl mb-4">💼</div>
-              <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-3">No active jobs yet</h3>
+              <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-3">No posted jobs yet</h3>
               <p className="text-slate-600 dark:text-slate-400 mb-8 text-lg max-w-lg mx-auto">Start posting jobs to attract top talent and build your team</p>
               <Link href="/admin/jobs/create" className="inline-flex items-center gap-2 px-8 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-semibold transition-all shadow-lg transform hover:scale-105">
                 Create First Job
@@ -196,7 +221,7 @@ export default function HRDashboardPage() {
                 >
                   {/* Dashboard Header Gradient Bar */}
                   <div className="h-2 bg-linear-to-r from-blue-400 to-cyan-500"></div>
-                  
+
                   <div className="p-6 flex flex-col flex-1">
                     {/* Job Title */}
                     <div className="mb-3">

@@ -307,7 +307,7 @@ export default function EnhancedProfilePage() {
 
   if (status === "loading" || loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-12 h-12 animate-spin text-teal-600 mx-auto mb-4" />
           <p className="text-slate-600 dark:text-slate-400">Loading profile...</p>
@@ -326,7 +326,7 @@ export default function EnhancedProfilePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
+    <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
       {/* Navigation Bar */}
       <nav className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -360,7 +360,7 @@ export default function EnhancedProfilePage() {
         <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-6 mb-6">
           <div className="flex items-start justify-between mb-6">
             <div className="flex items-start space-x-4">
-              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 flex items-center justify-center text-white text-2xl font-bold shadow-md">
+              <div className="w-20 h-20 rounded-full bg-linear-to-br from-teal-400 to-cyan-500 flex items-center justify-center text-white text-2xl font-bold shadow-md">
                 {getInitials(profile.fullName)}
               </div>
               <div>
@@ -866,7 +866,7 @@ export default function EnhancedProfilePage() {
         </div>
 
         {/* CTA Section */}
-        <div className="bg-gradient-to-r from-teal-600 to-cyan-600 rounded-lg shadow-lg p-8 text-center text-white">
+        <div className="bg-linear-to-r from-teal-600 to-cyan-600 rounded-lg shadow-lg p-8 text-center text-white">
           <h3 className="text-2xl font-bold mb-2">Ready to Apply?</h3>
           <p className="mb-6 opacity-90">Your profile is all set! Browse job opportunities that match your skills.</p>
           <Link href="/jobs" className="inline-block px-8 py-3 bg-white text-teal-600 rounded-lg font-bold hover:bg-slate-100 transition">

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
 import { sendEmail } from "@/lib/email";
 import {
@@ -30,12 +30,16 @@ export async function PATCH(request, { params }) {
 
     // Validate status
     const validStatuses = [
+      "applied",
       "submitted",
+      "under_review",
       "shortlisted",
       "rejected",
+      "interview_scheduled",
       "interviewing",
       "offered",
       "hired",
+      "accepted",
     ];
     if (!status || !validStatuses.includes(status)) {
       return NextResponse.json(
@@ -46,13 +50,69 @@ export async function PATCH(request, { params }) {
       );
     }
 
-    // Update application status
-    const { data: application, error } = await supabaseAdmin
-      .from("applications")
-      .update({ status })
+    // First, try to find an authenticated seeker application (job_applications)
+    let { data: existingApp, error: fetchError } = await supabaseAdmin
+      .from("job_applications")
+      .select("*, jobs(id, hr_email, created_by, title), job_seekers(full_name, email)")
       .eq("id", id)
-      .select("*, jobs(title)")
       .single();
+
+    let targetTable = "job_applications";
+
+    if (fetchError || !existingApp) {
+      // If not found, try the public 'applications' table
+      const { data: publicApp, error: publicFetchError } = await supabaseAdmin
+        .from("applications")
+        .select("*, jobs(id, hr_email, created_by, title)")
+        .eq("id", id)
+        .single();
+
+      if (publicFetchError || !publicApp) {
+        console.error("Application not found in either table:", { fetchError, publicFetchError });
+        return NextResponse.json(
+          { error: "Application not found" },
+          { status: 404 }
+        );
+      }
+
+      existingApp = publicApp;
+      targetTable = "applications";
+    }
+
+    // Verify HR owns this job (unless admin)
+    if (session.user.role !== "admin") {
+      const job = existingApp.jobs;
+      const isOwnerByEmail = job?.hr_email === session.user.email;
+      const isOwnerById = session.user.id && job?.created_by === session.user.id;
+
+      if (!isOwnerByEmail && !isOwnerById) {
+        return NextResponse.json(
+          { error: "Forbidden - You can only update applications for your own job postings" },
+          { status: 403 }
+        );
+      }
+    }
+
+    // Update application status in the correct table
+    let updateResponse;
+    if (targetTable === "job_applications") {
+      updateResponse = await supabaseAdmin
+        .from("job_applications")
+        .update({ status })
+        .eq("id", id)
+        .select("*, jobs(title), job_seekers(full_name, email)")
+        .single();
+    } else {
+      // public applications table
+      updateResponse = await supabaseAdmin
+        .from("applications")
+        .update({ status })
+        .eq("id", id)
+        .select("*, jobs(title)")
+        .single();
+    }
+
+    const { data: application, error } = updateResponse || {};
 
     if (error || !application) {
       console.error("Error updating application:", error);
@@ -65,6 +125,7 @@ export async function PATCH(request, { params }) {
     // Send email notification to candidate
     await sendStatusUpdateEmail(application, status);
 
+    // Return the updated application row
     return NextResponse.json(application);
   } catch (error) {
     console.error("Error in PATCH /api/applications/[id]/status:", error);
@@ -80,8 +141,16 @@ export async function PATCH(request, { params }) {
  */
 async function sendStatusUpdateEmail(application, newStatus) {
   try {
-    const { name, email, application_token, jobs } = application;
-    const jobTitle = jobs?.title || "Position";
+    // Determine applicant details (support both job_applications and public applications)
+    const name = application.job_seekers?.full_name || application.name || "Applicant";
+    const email = application.job_seekers?.email || application.email;
+    const application_token = application.application_token || application.id; // Prefer token if available
+    const jobTitle = application.jobs?.title || application.title || "Position";
+
+    if (!email) {
+      console.warn("No email found for application:", application.id);
+      return;
+    }
 
     let emailTemplate;
     let subject;

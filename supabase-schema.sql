@@ -186,9 +186,12 @@ CREATE POLICY "HR can delete jobs" ON jobs
 CREATE POLICY "Public can create applications" ON applications
   FOR INSERT WITH CHECK (true); -- No auth required to apply
 
-CREATE POLICY "HR can view all applications" ON applications
+CREATE POLICY "HR can view applications for own jobs" ON applications
   FOR SELECT USING (
-    EXISTS (SELECT 1 FROM hr_users WHERE id = auth.uid() AND role IN ('hr', 'admin'))
+    -- Admins can view all applications
+    EXISTS (SELECT 1 FROM hr_users WHERE id = auth.uid() AND role = 'admin')
+    -- HR users can view applications only for jobs they created
+    OR EXISTS (SELECT 1 FROM jobs WHERE id = job_id AND created_by = auth.uid())
   );
 
 CREATE POLICY "HR can update applications" ON applications

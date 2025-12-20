@@ -42,7 +42,12 @@ export default function ManageJobsPage() {
   const fetchJobs = async () => {
     try {
       // First fetch jobs
-      const jobsRes = await fetch("/api/jobs");
+      // If the current user is an HR (not admin) request only jobs they created
+      let jobsUrl = "/api/jobs";
+      if (session && session.user && session.user.role === "hr" && session.user.email) {
+        jobsUrl += `?created_by=${encodeURIComponent(session.user.email)}`;
+      }
+      const jobsRes = await fetch(jobsUrl);
       const jobsData = await jobsRes.json();
 
       if (jobsRes.ok && Array.isArray(jobsData)) {
@@ -137,8 +142,8 @@ export default function ManageJobsPage() {
                 Dashboard - View, edit, and manage all job postings
               </p>
             </div>
-            <Link
-              href="/admin/jobs/new"
+              <Link
+                href="/admin/jobs/create"
               className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-linear-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white rounded-xl font-semibold text-sm transition-all shadow-lg hover:shadow-xl transform hover:scale-105 duration-300 w-full md:w-auto"
             >
               <Plus className="w-4 h-4" />
@@ -230,7 +235,7 @@ export default function ManageJobsPage() {
               <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-3">No jobs posted yet</h3>
               <p className="text-slate-600 dark:text-slate-400 mb-8 text-lg max-w-lg mx-auto">Start posting jobs to attract top talent and build your team</p>
               <Link
-                href="/admin/jobs/new"
+                 href="/admin/jobs/create"
                 className="inline-flex items-center gap-2 px-8 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-semibold transition-all shadow-lg transform hover:scale-105"
               >
                 Post Your First Job
@@ -326,7 +331,7 @@ export default function ManageJobsPage() {
               Post additional job openings and expand your recruitment pipeline.
             </p>
             <Link
-              href="/admin/jobs/new"
+               href="/admin/jobs/create"
               className="inline-flex items-center gap-2 px-8 py-4 bg-white text-blue-600 rounded-xl font-bold hover:bg-gray-50 transition-all transform hover:scale-105 duration-300 shadow-lg text-lg"
             >
               Post New Job

@@ -74,7 +74,7 @@ export default function ApplicationSuccessPage() {
               {/* Pulsing ring effect */}
               <div className="absolute inset-0 bg-green-400 rounded-full animate-pulse opacity-25 scale-150"></div>
               <div className="absolute inset-0 bg-green-300 rounded-full animate-pulse opacity-20 scale-125" style={{ animationDelay: "0.2s" }}></div>
-              
+
               {/* Main icon container */}
               <div className="relative inline-flex items-center justify-center w-16 h-16 md:w-24 md:h-24 bg-linear-to-br from-green-100 to-emerald-100 dark:from-green-900/40 dark:to-emerald-900/40 rounded-full shadow-lg border-2 border-green-200 dark:border-green-700/50">
                 <CheckCircle2 className="h-8 w-8 md:h-14 md:w-14 text-green-600 dark:text-green-400 animate-in fade-in zoom-in duration-500 delay-300" />
@@ -140,8 +140,8 @@ export default function ApplicationSuccessPage() {
                         parseInt(matchScore) >= 70
                           ? "default"
                           : parseInt(matchScore) >= 50
-                          ? "secondary"
-                          : "outline"
+                            ? "secondary"
+                            : "outline"
                       }
                       className="text-base md:text-lg px-4 md:px-6 py-2 font-bold"
                     >

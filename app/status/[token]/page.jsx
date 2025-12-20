@@ -282,8 +282,8 @@ export default function StatusPage() {
                           application.resume_match_score >= 70
                             ? "default"
                             : application.resume_match_score >= 50
-                            ? "secondary"
-                            : "outline"
+                              ? "secondary"
+                              : "outline"
                         }
                         className="text-lg px-4 py-1"
                       >

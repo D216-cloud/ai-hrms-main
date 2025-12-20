@@ -4,9 +4,9 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { 
-  Loader2, Plus, Trash2, Upload, Eye, LogOut, Save, Check, 
-  X, Mail, Phone, MapPin, User, Award, Briefcase, GraduationCap, FileText, 
+import {
+  Loader2, Plus, Trash2, Upload, Eye, LogOut, Save, Check,
+  X, Mail, Phone, MapPin, User, Award, Briefcase, GraduationCap, FileText,
   Camera, Star, Sparkles, Trophy
 } from "lucide-react";
 import { CelebrationAnimation } from "@/components/CelebrationAnimation";
@@ -19,7 +19,7 @@ export default function ProfilePage() {
   const [resumeUploading, setResumeUploading] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [showCelebration, setShowCelebration] = useState(false);
-  
+
   const [editSections, setEditSections] = useState({
     personal: false,
     skills: false,
@@ -59,19 +59,29 @@ export default function ProfilePage() {
     if (status === "unauthenticated") {
       router.push("/auth/jobseeker-login");
     } else if (status === "authenticated") {
-      fetchProfile();
-      fetchApplications();
+      // Check if user is HR or admin - redirect them to admin dashboard
+      if (session?.user?.role === "hr" || session?.user?.role === "admin") {
+        console.log("HR/Admin user detected, redirecting to admin dashboard");
+        router.push("/admin/dashboard");
+        return;
+      }
+
+      // Only fetch profile and applications for job seekers
+      if (session?.user?.role === "job_seeker") {
+        fetchProfile();
+        fetchApplications();
+      }
     }
-  }, [status, router]);
+  }, [status, session?.user?.role, router]);
 
   const fetchProfile = async () => {
     try {
       setLoading(true);
       const res = await fetch("/api/profile");
       if (!res.ok) throw new Error("Failed to fetch profile");
-      
+
       const data = await res.json();
-      
+
       // Handle null values for form inputs
       const profileData = {
         ...data.profile,
@@ -93,7 +103,7 @@ export default function ProfilePage() {
         resume_filename: data.profile.resume_filename || null,
         resume_uploaded_at: data.profile.resume_uploaded_at || null,
       };
-      
+
       setProfile(profileData);
       setSkills(data.skills || []);
     } catch (error) {
@@ -208,10 +218,10 @@ export default function ProfilePage() {
         const errorMsg = data?.error || "Failed to save profile";
         throw new Error(errorMsg);
       }
-      
+
       setEditSections({ ...editSections, personal: false });
       showSuccess("Personal information saved successfully!");
-      
+
       // Check if profile is now 100% complete
       if (profileCompleteness === 100) {
         setShowCelebration(true);
@@ -241,7 +251,7 @@ export default function ProfilePage() {
         const errorMsg = data?.error || "Failed to add skill";
         throw new Error(errorMsg);
       }
-      
+
       setNewSkill("");
       await fetchProfile();
       showSuccess("Skill added successfully!");
@@ -263,7 +273,7 @@ export default function ProfilePage() {
         const errorMsg = data?.error || "Failed to remove skill";
         throw new Error(errorMsg);
       }
-      
+
       await fetchProfile();
       showSuccess("Skill removed successfully!");
     } catch (error) {
@@ -391,7 +401,7 @@ export default function ProfilePage() {
       profile.resume_url,
       skills.length > 0
     ];
-    
+
     const filledFields = fields.filter(field => field && field !== "");
     return Math.round((filledFields.length / fields.length) * 100);
   };
@@ -439,8 +449,8 @@ export default function ProfilePage() {
         <div className="mb-8 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-400">
           <div className="relative overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
             {/* Background gradient */}
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 opacity-10"></div>
-            
+            <div className="absolute inset-0 bg-linear-to-r from-blue-600 via-purple-600 to-pink-600 opacity-10"></div>
+
             <div className="relative bg-white dark:bg-slate-800 shadow-sm p-8 backdrop-blur-sm bg-opacity-95 dark:bg-opacity-95">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
                 {/* Left Side - Profile Info */}
@@ -452,34 +462,32 @@ export default function ProfilePage() {
                     <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Profile Strength</h2>
                   </div>
                   <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
-                    {profileCompleteness === 100 
-                      ? "✨ Excellent! Your profile is 100% complete and fully optimized!" 
+                    {profileCompleteness === 100
+                      ? "✨ Excellent! Your profile is 100% complete and fully optimized!"
                       : profileCompleteness >= 80
-                      ? "Almost there! Just a few more details to complete your profile."
-                      : profileCompleteness >= 50
-                      ? "Good progress! Keep filling out your profile information."
-                      : "Start building your complete profile to attract more opportunities."}
+                        ? "Almost there! Just a few more details to complete your profile."
+                        : profileCompleteness >= 50
+                          ? "Good progress! Keep filling out your profile information."
+                          : "Start building your complete profile to attract more opportunities."}
                   </p>
-                  
+
                   {/* Progress Bar */}
                   <div className="space-y-2">
                     <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-3 overflow-hidden">
-                      <div 
-                        className={`h-3 rounded-full transition-all duration-700 ease-out ${
-                          profileCompleteness === 100
-                            ? "bg-gradient-to-r from-green-400 via-emerald-500 to-teal-600 animate-pulse"
-                            : "bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"
-                        }`}
+                      <div
+                        className={`h-3 rounded-full transition-all duration-700 ease-out ${profileCompleteness === 100
+                            ? "bg-linear-to-r from-green-400 via-emerald-500 to-teal-600 animate-pulse"
+                            : "bg-linear-to-r from-blue-500 via-purple-500 to-pink-500"
+                          }`}
                         style={{ width: `${profileCompleteness}%` }}
                       ></div>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-xs text-slate-500 dark:text-slate-400">Progress</span>
-                      <span className={`text-lg font-bold ${
-                        profileCompleteness === 100 
-                          ? "text-green-600 dark:text-green-400 animate-bounce" 
+                      <span className={`text-lg font-bold ${profileCompleteness === 100
+                          ? "text-green-600 dark:text-green-400 animate-bounce"
                           : "text-slate-900 dark:text-white"
-                      }`}>
+                        }`}>
                         {profileCompleteness}%
                       </span>
                     </div>
@@ -488,11 +496,10 @@ export default function ProfilePage() {
 
                 {/* Right Side - Status Badge */}
                 <div className="flex flex-col items-center justify-center gap-4 md:border-l border-slate-200 dark:border-slate-700 md:pl-6">
-                  <div className={`relative w-32 h-32 rounded-full flex items-center justify-center ${
-                    profileCompleteness === 100
-                      ? "bg-gradient-to-r from-green-400 to-emerald-500 shadow-lg shadow-green-500/30"
-                      : "bg-gradient-to-r from-blue-400 to-purple-500 shadow-lg"
-                  } animate-in zoom-in duration-500`}>
+                  <div className={`relative w-32 h-32 rounded-full flex items-center justify-center ${profileCompleteness === 100
+                      ? "bg-linear-to-r from-green-400 to-emerald-500 shadow-lg shadow-green-500/30"
+                      : "bg-linear-to-r from-blue-400 to-purple-500 shadow-lg"
+                    } animate-in zoom-in duration-500`}>
                     <div className="absolute inset-2 rounded-full bg-white dark:bg-slate-800 flex items-center justify-center">
                       <div className="text-center">
                         <div className="text-3xl font-bold text-slate-900 dark:text-white">
@@ -502,7 +509,7 @@ export default function ProfilePage() {
                       </div>
                     </div>
                   </div>
-                  
+
                   {profileCompleteness === 100 && (
                     <div className="flex items-center gap-2 px-4 py-2 bg-green-100 dark:bg-green-900/30 rounded-full border border-green-200 dark:border-green-800">
                       <Trophy className="w-5 h-5 text-green-600 dark:text-green-400" />
@@ -523,9 +530,9 @@ export default function ProfilePage() {
           {/* Main Profile Section */}
           <div className="lg:col-span-2 space-y-6">
             {/* Personal Information Section */}
-            <div className="bg-gradient-to-br from-blue-50 to-white dark:from-gray-800 dark:to-gray-900 rounded-2xl shadow-sm border border-blue-100 dark:border-blue-900/30 overflow-hidden hover:shadow-lg transition-all duration-300 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-500">
+            <div className="bg-linear-to-br from-blue-50 to-white dark:from-gray-800 dark:to-gray-900 rounded-2xl shadow-sm border border-blue-100 dark:border-blue-900/30 overflow-hidden hover:shadow-lg transition-all duration-300 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-500">
               {/* Header with gradient background */}
-              <div className="relative bg-gradient-to-r from-blue-600 to-blue-500 dark:from-blue-900 dark:to-blue-800 px-6 py-8 overflow-hidden">
+              <div className="relative bg-linear-to-r from-blue-600 to-blue-500 dark:from-blue-900 dark:to-blue-800 px-6 py-8 overflow-hidden">
                 <div className="absolute inset-0 opacity-10">
                   <div className="absolute top-0 right-0 w-40 h-40 bg-white rounded-full -mr-20 -mt-20"></div>
                 </div>
@@ -541,11 +548,10 @@ export default function ProfilePage() {
                   </div>
                   <button
                     onClick={() => toggleEdit("personal")}
-                    className={`px-6 py-2 rounded-lg font-semibold transition-all duration-300 flex items-center space-x-2 animate-in fade-in zoom-in duration-500 backdrop-blur ${
-                      editSections.personal
+                    className={`px-6 py-2 rounded-lg font-semibold transition-all duration-300 flex items-center space-x-2 animate-in fade-in zoom-in duration-500 backdrop-blur ${editSections.personal
                         ? "bg-red-500/80 hover:bg-red-600 text-white ring-2 ring-red-300/50"
                         : "bg-white/20 hover:bg-white/30 text-white ring-2 ring-white/30"
-                    }`}
+                      }`}
                   >
                     {editSections.personal ? <X className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
                     <span className="font-medium">{editSections.personal ? "Cancel" : "Edit Profile"}</span>
@@ -580,7 +586,7 @@ export default function ProfilePage() {
                         />
                       </div>
                     </div>
-                    
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="animate-in fade-in slide-in-from-left duration-500 delay-200">
                         <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Phone</label>
@@ -603,7 +609,7 @@ export default function ProfilePage() {
                         />
                       </div>
                     </div>
-                    
+
                     <div className="animate-in fade-in slide-in-from-bottom duration-500 delay-300">
                       <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">About Me</label>
                       <textarea
@@ -614,7 +620,7 @@ export default function ProfilePage() {
                         placeholder="Tell us about yourself..."
                       />
                     </div>
-                    
+
                     {/* Experience Fields */}
                     <div className="border-t border-gray-200 dark:border-gray-600 pt-6 animate-in fade-in slide-in-from-bottom duration-500 delay-400">
                       <div className="flex items-center gap-3 mb-4">
@@ -767,7 +773,7 @@ export default function ProfilePage() {
                     {/* Info Cards Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {/* Email Card */}
-                      <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-xl p-4 border border-blue-200 dark:border-blue-700 hover:shadow-md transition animate-in fade-in slide-in-from-left duration-500">
+                      <div className="bg-linear-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-xl p-4 border border-blue-200 dark:border-blue-700 hover:shadow-md transition animate-in fade-in slide-in-from-left duration-500">
                         <div className="flex items-center space-x-3">
                           <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
                             <Mail className="w-5 h-5 text-white" />
@@ -780,7 +786,7 @@ export default function ProfilePage() {
                       </div>
 
                       {/* Phone Card */}
-                      <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-xl p-4 border border-purple-200 dark:border-purple-700 hover:shadow-md transition animate-in fade-in slide-in-from-top duration-500 delay-100">
+                      <div className="bg-linear-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-xl p-4 border border-purple-200 dark:border-purple-700 hover:shadow-md transition animate-in fade-in slide-in-from-top duration-500 delay-100">
                         <div className="flex items-center space-x-3">
                           <div className="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
                             <Phone className="w-5 h-5 text-white" />
@@ -793,7 +799,7 @@ export default function ProfilePage() {
                       </div>
 
                       {/* Location Card */}
-                      <div className="bg-gradient-to-br from-pink-50 to-pink-100 dark:from-pink-900/20 dark:to-pink-800/20 rounded-xl p-4 border border-pink-200 dark:border-pink-700 hover:shadow-md transition animate-in fade-in slide-in-from-right duration-500 delay-200">
+                      <div className="bg-linear-to-br from-pink-50 to-pink-100 dark:from-pink-900/20 dark:to-pink-800/20 rounded-xl p-4 border border-pink-200 dark:border-pink-700 hover:shadow-md transition animate-in fade-in slide-in-from-right duration-500 delay-200">
                         <div className="flex items-center space-x-3">
                           <div className="w-10 h-10 bg-pink-600 rounded-lg flex items-center justify-center flex-shrink-0">
                             <MapPin className="w-5 h-5 text-white" />
@@ -813,15 +819,15 @@ export default function ProfilePage() {
                         <p className="text-2xl font-bold text-gray-900 dark:text-white">{profile.full_name}</p>
                       </div>
                     )}
-                    
+
                     {/* About/Bio */}
                     {profile.bio && (
-                      <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-900/10 dark:to-indigo-800/10 rounded-xl p-5 border border-indigo-200 dark:border-indigo-700 animate-in fade-in slide-in-from-bottom duration-500 delay-400">
+                      <div className="bg-linear-to-br from-indigo-50 to-indigo-100 dark:from-indigo-900/10 dark:to-indigo-800/10 rounded-xl p-5 border border-indigo-200 dark:border-indigo-700 animate-in fade-in slide-in-from-bottom duration-500 delay-400">
                         <p className="text-xs text-gray-600 dark:text-gray-400 font-semibold uppercase tracking-wider mb-2">About You</p>
                         <p className="text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">{profile.bio}</p>
                       </div>
                     )}
-                    
+
                     {/* Experience Display */}
                     {(profile.job_title || profile.company_name) && (
                       <div className="border-t border-gray-200 dark:border-gray-600 pt-6 animate-in fade-in slide-in-from-bottom duration-500 delay-400">
@@ -846,7 +852,7 @@ export default function ProfilePage() {
                         </div>
                       </div>
                     )}
-                    
+
                     {/* Education Display */}
                     {(profile.school_name || profile.degree) && (
                       <div className="border-t border-gray-200 dark:border-gray-600 pt-6 animate-in fade-in slide-in-from-bottom duration-500 delay-500">
@@ -896,7 +902,7 @@ export default function ProfilePage() {
 
               <div className="px-6 py-6">
                 {profile.resume_url ? (
-                  <div className="bg-gradient-to-br from-red-50 to-pink-50 dark:from-red-900/10 dark:to-pink-900/10 p-6 rounded-lg border border-red-200 dark:border-red-800">
+                  <div className="bg-linear-to-br from-red-50 to-pink-50 dark:from-red-900/10 dark:to-pink-900/10 p-6 rounded-lg border border-red-200 dark:border-red-800">
                     <div className="flex items-center justify-between mb-6">
                       <div className="flex-1">
                         <p className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
@@ -908,7 +914,7 @@ export default function ProfilePage() {
                         </p>
                       </div>
                     </div>
-                    
+
                     {/* Resume Preview Section */}
                     {profile.resume_url && profile.resume_url.includes('.pdf') && (
                       <div className="mb-6 bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden">
@@ -919,7 +925,7 @@ export default function ProfilePage() {
                         />
                       </div>
                     )}
-                    
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <a
                         href={profile.resume_url}
@@ -989,12 +995,12 @@ export default function ProfilePage() {
           {/* Sidebar */}
           <div className="space-y-6">
             {/* Profile Picture Card - Enhanced */}
-            <div className="bg-gradient-to-br from-blue-50 to-purple-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl shadow-sm border border-blue-200 dark:border-purple-700 overflow-hidden hover:shadow-lg transition-all duration-300 animate-in fade-in slide-in-from-right-4 duration-500 delay-700">
+            <div className="bg-linear-to-br from-blue-50 to-purple-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl shadow-sm border border-blue-200 dark:border-purple-700 overflow-hidden hover:shadow-lg transition-all duration-300 animate-in fade-in slide-in-from-right-4 duration-500 delay-700">
               <div className="px-6 py-8">
                 <div className="flex flex-col items-center">
                   {/* Profile Picture */}
                   <div className="relative mb-6">
-                    <div className="w-32 h-32 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-4xl font-bold shadow-xl ring-4 ring-white dark:ring-gray-800 animate-in zoom-in duration-500">
+                    <div className="w-32 h-32 bg-linear-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-4xl font-bold shadow-xl ring-4 ring-white dark:ring-gray-800 animate-in zoom-in duration-500">
                       {profile.profile_picture_url ? (
                         <img src={profile.profile_picture_url} alt="Profile" className="w-full h-full rounded-full object-cover" />
                       ) : (
@@ -1042,11 +1048,10 @@ export default function ProfilePage() {
                     <div className="flex justify-between items-center mb-3">
                       <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Profile Strength</span>
                       <div className="flex items-center gap-2">
-                        <span className={`font-bold text-lg ${
-                          profileCompleteness === 100 
-                            ? "text-green-600 dark:text-green-400" 
+                        <span className={`font-bold text-lg ${profileCompleteness === 100
+                            ? "text-green-600 dark:text-green-400"
                             : "text-gray-900 dark:text-white"
-                        }`}>
+                          }`}>
                           {profileCompleteness}%
                         </span>
                         {profileCompleteness === 100 && (
@@ -1055,20 +1060,19 @@ export default function ProfilePage() {
                       </div>
                     </div>
                     <div className="w-full bg-gray-300 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
-                      <div 
-                        className={`h-3 rounded-full transition-all duration-700 ease-out ${
-                          profileCompleteness === 100
-                            ? "bg-gradient-to-r from-green-400 via-emerald-500 to-teal-600 animate-pulse"
-                            : "bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"
-                        }`}
+                      <div
+                        className={`h-3 rounded-full transition-all duration-700 ease-out ${profileCompleteness === 100
+                            ? "bg-linear-to-r from-green-400 via-emerald-500 to-teal-600 animate-pulse"
+                            : "bg-linear-to-r from-blue-500 via-purple-500 to-pink-500"
+                          }`}
                         style={{ width: `${profileCompleteness}%` }}
                       ></div>
                     </div>
                     <p className="text-xs text-gray-600 dark:text-gray-400 mt-3 text-center font-medium">
-                      {profileCompleteness === 100 
-                        ? "🎉 Profile Complete! You're all set!" 
-                        : profileCompleteness >= 80 
-                          ? "Almost there! Just a bit more to complete your profile." 
+                      {profileCompleteness === 100
+                        ? "🎉 Profile Complete! You're all set!"
+                        : profileCompleteness >= 80
+                          ? "Almost there! Just a bit more to complete your profile."
                           : profileCompleteness >= 50
                             ? "Good progress! Keep filling out your information."
                             : "Start completing your profile to get discovered."}
@@ -1092,11 +1096,10 @@ export default function ProfilePage() {
                 </div>
                 <button
                   onClick={() => toggleEdit("skills")}
-                  className={`px-6 py-2 rounded-lg font-semibold transition flex items-center space-x-2 animate-in fade-in zoom-in duration-500 ${
-                    editSections.skills
+                  className={`px-6 py-2 rounded-lg font-semibold transition flex items-center space-x-2 animate-in fade-in zoom-in duration-500 ${editSections.skills
                       ? "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400"
                       : "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-200 dark:hover:bg-yellow-900/50"
-                  }`}
+                    }`}
                 >
                   {editSections.skills ? <X className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
                 </button>
@@ -1125,7 +1128,7 @@ export default function ProfilePage() {
                       {skills.map((skill) => (
                         <div key={skill.id} className="inline-flex items-center bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 px-4 py-2 rounded-full text-sm font-medium">
                           {skill.skill_name}
-                          <button 
+                          <button
                             onClick={() => handleRemoveSkill(skill.id)}
                             className="ml-2 text-yellow-600 dark:text-yellow-400 hover:text-red-500"
                           >
@@ -1194,8 +1197,8 @@ export default function ProfilePage() {
                 ) : applications.length > 0 ? (
                   <div className="space-y-4">
                     {applications.slice(0, 5).map((app, idx) => (
-                      <div 
-                        key={app.id} 
+                      <div
+                        key={app.id}
                         className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition animate-in fade-in slide-in-from-right duration-500"
                         style={{ animationDelay: `${idx * 100}ms` }}
                       >
@@ -1208,13 +1211,12 @@ export default function ProfilePage() {
                           </p>
                         </div>
                         <div className="flex items-center space-x-3">
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            app.status === 'applied' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' :
-                            app.status === 'under_review' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300' :
-                            app.status === 'shortlisted' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
-                            app.status === 'accepted' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300' :
-                            'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
-                          }`}>
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${app.status === 'applied' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' :
+                              app.status === 'under_review' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300' :
+                                app.status === 'shortlisted' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
+                                  app.status === 'accepted' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300' :
+                                    'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+                            }`}>
                             {app.status.replace('_', ' ').toUpperCase()}
                           </span>
                         </div>

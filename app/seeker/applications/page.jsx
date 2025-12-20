@@ -42,26 +42,36 @@ export default function ApplicationsPage() {
     if (status === "unauthenticated") {
       router.push("/auth/jobseeker-login");
     } else if (status === "authenticated") {
-      fetchApplications();
+      // Check if user is HR or admin - redirect them to admin dashboard
+      if (session?.user?.role === "hr" || session?.user?.role === "admin") {
+        console.log("HR/Admin user detected, redirecting to admin dashboard");
+        router.push("/admin/dashboard");
+        return;
+      }
+
+      // Only fetch applications for job seekers
+      if (session?.user?.role === "job_seeker") {
+        fetchApplications();
+      }
     }
-  }, [status, router]);
+  }, [status, session?.user?.role, router]);
 
   const fetchApplications = async () => {
     try {
       setLoading(true);
       console.log("Fetching applications for user:", session?.user?.email);
       const res = await fetch("/api/seeker/applications");
-      
+
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
         console.error("Failed to fetch applications:", res.status, errorData);
-        
+
         if (res.status === 401) {
           console.log("Unauthorized - redirecting to login");
           router.push("/auth/jobseeker-login");
           return;
         }
-        
+
         // Still set empty array on error to show UI
         setApplications([]);
         setFilteredApplications([]);
@@ -71,7 +81,7 @@ export default function ApplicationsPage() {
       const data = await res.json();
       console.log("Applications fetched for logged-in user:", data);
       console.log("Total applications:", data.applications?.length || 0);
-      
+
       // Debug: Log each application's job data
       if (data.applications && data.applications.length > 0) {
         console.log("First application details:", {
@@ -82,7 +92,7 @@ export default function ApplicationsPage() {
           jobCompany: data.applications[0].jobs?.company
         });
       }
-      
+
       const appsData = data.applications || [];
       setApplications(appsData);
       filterApplications(appsData, searchTerm, selectedStatus);
@@ -214,9 +224,9 @@ export default function ApplicationsPage() {
             <CardContent className="pt-6">
               <div className="text-center">
                 <p className="text-3xl md:text-4xl font-bold text-green-600 dark:text-green-400">
-                  {applications.filter((a) => 
-                    a.status === "shortlisted" || 
-                    a.status === "accepted" || 
+                  {applications.filter((a) =>
+                    a.status === "shortlisted" ||
+                    a.status === "accepted" ||
                     a.status === "interview_scheduled"
                   ).length}
                 </p>
@@ -231,8 +241,8 @@ export default function ApplicationsPage() {
             <CardContent className="pt-6">
               <div className="text-center">
                 <p className="text-3xl md:text-4xl font-bold text-yellow-600 dark:text-yellow-400">
-                  {applications.filter((a) => 
-                    a.status === "under_review" || 
+                  {applications.filter((a) =>
+                    a.status === "under_review" ||
                     a.status === "reviewing" ||
                     a.status === "submitted"
                   ).length}
@@ -328,13 +338,13 @@ export default function ApplicationsPage() {
                 <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-linear-to-br from-cyan-100 to-blue-100 dark:from-cyan-900/30 dark:to-blue-900/30 mb-6">
                   <Briefcase className="h-12 w-12 text-cyan-600 dark:text-cyan-400" />
                 </div>
-                
+
                 <h3 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-2">
                   {applications.length === 0
                     ? "🚀 Start Your Job Journey"
                     : "No Results Found"}
                 </h3>
-                
+
                 <p className="text-base md:text-lg text-gray-600 dark:text-gray-400 mb-2 max-w-md mx-auto">
                   {applications.length === 0
                     ? "You haven't applied to any jobs yet. Explore amazing opportunities and submit your applications."
