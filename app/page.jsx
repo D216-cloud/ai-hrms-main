@@ -9,9 +9,15 @@ import { useState, useEffect } from "react";
 export default function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Prevent body scroll when mobile menu is open
+  // Chat widget state
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+
+  // Prevent body scroll when mobile menu or chat is open
   useEffect(() => {
-    if (mobileMenuOpen) {
+    if (mobileMenuOpen || chatOpen) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
@@ -19,7 +25,7 @@ export default function Home() {
     return () => {
       document.body.style.overflow = 'unset';
     };
-  }, [mobileMenuOpen]);
+  }, [mobileMenuOpen, chatOpen]);
   return (
     <div className="min-h-screen bg-linear-to-b from-white via-gray-50 to-white dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
       {/* Navigation */}
@@ -238,6 +244,91 @@ export default function Home() {
           </Link>
         </div>
       </section>
+
+      {/* Chat Widget (bottom-right) */}
+      <div className="fixed right-6 bottom-6 z-50">
+        <div className="flex flex-col items-end">
+          {chatOpen && (
+            <div className="w-80 max-w-[90vw] bg-white dark:bg-slate-800 border rounded-lg shadow-lg overflow-hidden mb-3">
+              <div className="p-3 border-b dark:border-slate-700 flex items-center justify-between">
+                <div className="font-semibold">AI Assistant</div>
+                <button onClick={() => setChatOpen(false)} className="text-xs text-slate-500">Close</button>
+              </div>
+              <div className="p-3 h-64 overflow-y-auto space-y-3" id="chat-scroll">
+                {chatMessages.length === 0 && <div className="text-xs text-slate-500">Ask me anything about hiring, resumes, or tests.</div>}
+                {chatMessages.map((m, i) => (
+                  <div key={i} className={`p-2 rounded ${m.role === 'user' ? 'bg-teal-50 text-teal-900 self-end' : 'bg-slate-100 dark:bg-slate-700'}`}>
+                    <div className="text-sm whitespace-pre-line">{m.content}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="p-2 border-t dark:border-slate-700">
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    const msg = chatInput.trim();
+                    if (!msg) return;
+                    const userMsg = { role: 'user', content: msg };
+                    setChatMessages((s) => [...s, userMsg]);
+                    setChatInput('');
+                    setChatLoading(true);
+                    try {
+                      const res = await fetch('/api/chat', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ message: msg }),
+                      });
+                      const body = await res.json();
+                      if (res.ok && body.reply) {
+                        // add placeholder assistant message
+                        setChatMessages((s) => [...s, { role: 'assistant', content: '' }]);
+                        // animate typing effect
+                        const full = body.reply;
+                        let pos = 0;
+                        const speed = 15; // ms per character
+                        const step = () => {
+                          pos += 1;
+                          setChatMessages((prev) => {
+                            const next = prev.slice();
+                            const last = next[next.length - 1] || { role: 'assistant', content: '' };
+                            last.content = full.slice(0, pos);
+                            next[next.length - 1] = last;
+                            return next;
+                          });
+                          const el = document.getElementById('chat-scroll');
+                          if (el) el.scrollTop = el.scrollHeight;
+                          if (pos < full.length) {
+                            setTimeout(step, speed);
+                          }
+                        };
+                        setTimeout(step, speed);
+                      } else {
+                        setChatMessages((s) => [...s, { role: 'assistant', content: 'Sorry, I could not get a response.' }]);
+                      }
+                    } catch (err) {
+                      console.error('Chat error', err);
+                      setChatMessages((s) => [...s, { role: 'assistant', content: 'Error contacting AI.' }]);
+                    } finally {
+                      setChatLoading(false);
+                    }
+                  }}
+                >
+                  <div className="flex items-center gap-2">
+                    <input value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Type a question..." className="flex-1 px-3 py-2 border rounded bg-white dark:bg-slate-800 text-sm" />
+                    <button type="submit" disabled={chatLoading} className="px-3 py-2 bg-cyan-600 text-white rounded">
+                      {chatLoading ? '...' : 'Send'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          <button onClick={() => setChatOpen((s) => !s)} className="w-12 h-12 rounded-full bg-cyan-500 hover:bg-cyan-600 text-white shadow-lg flex items-center justify-center">
+            💬
+          </button>
+        </div>
+      </div>
 
       {/* Features Section */}
       <section className="relative py-16 md:py-24 px-4 sm:px-6 lg:px-8 overflow-hidden">

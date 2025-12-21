@@ -108,6 +108,38 @@ export async function POST(request) {
       );
     }
 
+    // Also record a historical row in `test_scores` for audit / analytics
+    let savedToTestScores = false;
+    let testScoresInsertError = null;
+    try {
+      const { error: insertErr } = await supabaseAdmin
+        .from('test_scores')
+        .insert([
+          {
+            application_id: application.id,
+            test_id: test?.id || null,
+            test_token: application.test_token || null,
+            test_score: testScore,
+            overall_score: overallScore,
+            resume_score: resumeScore,
+            comm_score: commScore,
+            correct_answers: correctAnswers,
+            total_questions: test.questions.length,
+            created_at: new Date().toISOString(),
+          },
+        ]);
+
+      if (insertErr) {
+        testScoresInsertError = insertErr.message || JSON.stringify(insertErr);
+        console.warn('Failed to insert test_scores row:', insertErr);
+      } else {
+        savedToTestScores = true;
+      }
+    } catch (e) {
+      testScoresInsertError = e.message || String(e);
+      console.warn('Error inserting into test_scores:', e);
+    }
+
     return NextResponse.json({
       success: true,
       message: "Test submitted successfully",
@@ -116,6 +148,8 @@ export async function POST(request) {
       correctAnswers,
       passed: testScore >= (test.passing_score || 60),
       overallScore,
+      savedToTestScores,
+      testScoresInsertError,
       // Don't return detailed results to prevent answer sharing
     });
   } catch (error) {

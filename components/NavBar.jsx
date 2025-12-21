@@ -127,6 +127,17 @@ export default function NavBar() {
                 >
                   📊 Dashboard
                 </Link>
+
+                <Link
+                  href="/admin/profile"
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                    isActive("/admin/profile")
+                      ? "text-cyan-600 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-900/20"
+                      : "text-gray-700 dark:text-gray-300 hover:text-cyan-600 dark:hover:text-cyan-400"
+                  }`}
+                >
+                  👤 Profile
+                </Link>
                 
                 <Link
                   href="/admin/candidates"
@@ -352,7 +363,7 @@ export default function NavBar() {
                       : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
                   }`}
                 >
-                  <span className="text-xl">👥</span>
+                  <span className="text-xl">�</span>
                   <span>Candidates</span>
                 </Link>
 

@@ -94,6 +94,7 @@ export async function GET(req) {
     // Public lookup by application token or test token (used by status pages)
     if (token || testToken) {
       try {
+        // First try the public applications table
         let query = supabase.from('applications').select(`*, jobs(title, company, location)`);
         if (token) query = query.eq('application_token', token);
         if (testToken) query = query.eq('test_token', testToken);
@@ -104,10 +105,83 @@ export async function GET(req) {
           return Response.json({ error: 'Failed to fetch application' }, { status: 500 });
         }
 
-        // Return array so frontend can handle either [] or [app]
-        return Response.json(apps || []);
+        // If we found results in the public applications table, return them
+        if (apps && apps.length > 0) {
+          return Response.json(apps);
+        }
+
+        // If no public application found and a testToken was provided, try job_applications (HR-created invites)
+        if (testToken) {
+          try {
+            const { data: jobApps, error: jobAppsError } = await supabase
+              .from('job_applications')
+            .select(`*, jobs(title, company, location), job_seekers(full_name as name, email, phone, resume_url, profile_picture_url)`)
+            .eq('test_token', testToken)
+
+            if (jobAppsError) {
+              console.error('Failed to fetch job_application by test token:', jobAppsError);
+              return Response.json({ error: 'Failed to fetch application' }, { status: 500 });
+            }
+
+            // Normalize jobApplications to the same shape as public applications where possible
+            if (jobApps && jobApps.length > 0) {
+              const normalized = jobApps.map((a) => ({
+                id: a.id,
+                job_id: a.job_id,
+                name: a.job_seekers?.name || a.name || '',
+                email: a.job_seekers?.email || '',
+                phone: a.job_seekers?.phone || '',
+                location: a.job_seekers?.location || '',
+                resume_url: a.job_seekers?.resume_url || a.resume_url || '',
+                status: a.status || 'applied',
+                application_token: null,
+                test_token: a.test_token,
+                jobs: a.jobs || null,
+                created_at: a.applied_at || a.updated_at || null,
+                raw: a,
+              }));
+
+              return Response.json(normalized);
+            }
+          } catch (err) {
+            console.error('Error fetching job_applications by test token:', err);
+            return Response.json({ error: 'Internal server error' }, { status: 500 });
+          }
+        }
+
+        // Return empty array if nothing found
+        return Response.json([]);
       } catch (err) {
         console.error('Error fetching application by token:', err);
+        return Response.json({ error: 'Internal server error' }, { status: 500 });
+      }
+    }
+
+    // Lookup by numeric/uuid ID - allow status pages linked from internal views to pass an ID
+    const idParam = searchParams.get('id');
+    if (idParam) {
+      try {
+        // Try public applications first
+        const { data: publicApp, error: publicErr } = await supabase
+          .from('applications')
+          .select(`*, jobs(title, company, location)`)
+          .eq('id', idParam)
+          .single();
+
+        if (publicApp) return Response.json([publicApp]);
+
+        // If not found, try job_applications
+        const { data: jobApp, error: jobErr } = await supabase
+          .from('job_applications')
+          .select(`*, jobs(title, company, location), job_seekers(full_name, email, phone, resume_url)`)
+          .eq('id', idParam)
+          .single();
+
+        if (jobApp) return Response.json([jobApp]);
+
+        return Response.json([]);
+      } catch (err) {
+        console.error('Error fetching application by id:', err);
         return Response.json({ error: 'Internal server error' }, { status: 500 });
       }
     }
@@ -177,6 +251,7 @@ export async function GET(req) {
           phone: a.job_seekers?.phone || '',
           location: a.job_seekers?.location || '',
           resume_url: a.job_seekers?.resume_url || a.resume_url || '',
+          profile_picture_url: a.job_seekers?.profile_picture_url || null,
           skills: a.job_seekers?.job_seeker_skills?.map(s => s.skill_name) || [],
           status: a.status || 'applied',
           match_score: a.match_score || 0,
@@ -250,6 +325,7 @@ export async function GET(req) {
           phone: a.job_seekers?.phone || '',
           location: a.job_seekers?.location || '',
           resume_url: a.job_seekers?.resume_url || a.resume_url || '',
+          profile_picture_url: a.job_seekers?.profile_picture_url || null,
           skills: a.job_seekers?.job_seeker_skills?.map(s => s.skill_name) || [],
           status: a.status || 'applied',
           match_score: a.match_score || 0,
@@ -350,6 +426,7 @@ export async function GET(req) {
           phone: a.job_seekers?.phone || '',
           location: a.job_seekers?.location || '',
           resume_url: a.job_seekers?.resume_url || a.resume_url || '',
+          profile_picture_url: a.job_seekers?.profile_picture_url || null,
           skills: a.job_seekers?.job_seeker_skills?.map(s => s.skill_name) || [],
           status: a.status || 'applied',
           match_score: a.match_score || 0,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
@@ -45,6 +45,7 @@ import {
   Loader2,
   Filter,
 } from "lucide-react";
+import Image from "next/image";
 
 export default function AllCandidatesPage() {
   const router = useRouter();
@@ -60,6 +61,19 @@ export default function AllCandidatesPage() {
   const [selectedCandidates, setSelectedCandidates] = useState([]);
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
 
+  // Interview scheduling UI state
+  const [interviewers, setInterviewers] = useState([]);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [schedLoading, setSchedLoading] = useState(false);
+  const [scheduledAt, setScheduledAt] = useState("");
+  const [schedInterviewer, setSchedInterviewer] = useState("");
+  const [schedMeetingLink, setSchedMeetingLink] = useState("");
+  const [schedMode, setSchedMode] = useState("virtual");
+  const [schedDuration, setSchedDuration] = useState(30);
+  const [schedNotes, setSchedNotes] = useState("");
+  const [schedSendTest, setSchedSendTest] = useState(false);
+  const scheduleSectionRef = useRef(null);
+
   useEffect(() => {
     // Check authorization
     if (
@@ -72,6 +86,25 @@ export default function AllCandidatesPage() {
     }
 
     fetchData();
+    fetchInterviewers();
+
+    // Preload HR profile for current user (to show profile_picture in candidate details header)
+    const fetchMyHrProfile = async () => {
+      try {
+        const res = await fetch('/api/hr/profile');
+        if (!res.ok) return;
+        const { profile } = await res.json();
+        // attach to session UI if needed (not stored globally)
+        if (profile?.profile_picture_url) {
+          // nothing to store globally yet — only used when displaying info
+        }
+      } catch (err) {
+        console.error('Failed to fetch my hr profile:', err);
+      }
+    };
+
+    fetchMyHrProfile();
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session]);
 
@@ -91,25 +124,105 @@ export default function AllCandidatesPage() {
 
       // Fetch all candidates/applications
       const candidatesResponse = await fetch("/api/applications");
+
+      if (!candidatesResponse.ok) {
+        const errBody = await candidatesResponse.json().catch(() => null);
+        console.error("Failed to fetch applications:", errBody || candidatesResponse.statusText);
+        toast.error(`Failed to fetch dashboard data: ${errBody?.error || candidatesResponse.statusText}`);
+        return;
+      }
+
       const candidatesResponseData = await candidatesResponse.json();
 
       // Extract applications array from the response
       const candidatesData = candidatesResponseData.applications || [];
 
-      if (candidatesResponse.ok) {
-        // Sort by match score descending and created date
-        const sorted = candidatesData.sort(
-          (a, b) =>
-            ((b.resume_match_score || b.match_score || 0) - (a.resume_match_score || a.match_score || 0)) ||
-            new Date(b.created_at) - new Date(a.created_at)
-        );
-        setCandidates(sorted);
-      }
+      // Sort by match score descending and created date
+      const sorted = candidatesData.sort(
+        (a, b) =>
+          ((b.resume_match_score || b.match_score || 0) - (a.resume_match_score || a.match_score || 0)) ||
+          new Date(b.created_at) - new Date(a.created_at)
+      );
+      setCandidates(sorted);
     } catch (error) {
       console.error("Error fetching data:", error);
       toast.error("Failed to load candidates");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchInterviewers = async () => {
+    try {
+      const res = await fetch('/api/interviewers');
+      if (!res.ok) {
+        console.error('Failed to fetch interviewers');
+        return;
+      }
+      const data = await res.json();
+      setInterviewers(data.interviewers || []);
+    } catch (err) {
+      console.error('Error fetching interviewers:', err);
+    }
+  };
+
+  const handleSchedule = async (candidateId) => {
+    if (!scheduledAt) {
+      toast.error('Please select a date and time');
+      return;
+    }
+
+    // Optimistic update: set status locally so the card shows 'Interviewing' immediately
+    const isoScheduledAt = new Date(scheduledAt).toISOString();
+    const prevCandidates = [...candidates];
+    const prevSelected = selectedCandidate ? { ...selectedCandidate } : null;
+
+    setCandidates((prev) => prev.map((c) => c.id === candidateId ? ({ ...c, status: 'interviewing', scheduled_at: isoScheduledAt, interviewer_id: schedInterviewer || c.interviewer_id, meeting_link: schedMeetingLink || c.meeting_link, interview_mode: schedMode || c.interview_mode, interview_duration_minutes: schedDuration || c.interview_duration_minutes, interviewer_notes: schedNotes || c.interviewer_notes }) : c));
+    if (selectedCandidate && selectedCandidate.id === candidateId) {
+      setSelectedCandidate((prev) => ({ ...prev, status: 'interviewing', scheduled_at: isoScheduledAt, interviewer_id: schedInterviewer || prev.interviewer_id, meeting_link: schedMeetingLink || prev.meeting_link, interview_mode: schedMode || prev.interview_mode, interview_duration_minutes: schedDuration || prev.interview_duration_minutes, interviewer_notes: schedNotes || prev.interviewer_notes }));
+    }
+
+    setSchedLoading(true);
+    try {
+      const payload = {
+        status: 'interviewing',
+        scheduled_at: isoScheduledAt,
+        interviewer_id: schedInterviewer || undefined,
+        meeting_link: schedMeetingLink || undefined,
+        interview_mode: schedMode || undefined,
+        interview_duration_minutes: schedDuration || undefined,
+        interviewer_notes: schedNotes || undefined,
+        sendTest: schedSendTest || undefined,
+      };
+
+      const res = await fetch(`/api/applications/${candidateId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(body?.error || 'Failed to schedule interview');
+      }
+
+      const updated = body;
+
+      // Merge returned updated fields into the local list
+      setCandidates((prev) => prev.map((c) => (c.id === candidateId ? { ...c, ...updated } : c)));
+      setSelectedCandidate((prev) => (prev && prev.id === candidateId ? { ...prev, ...updated } : prev));
+
+      toast.success('Interview scheduled');
+      // reset form
+      setScheduledAt(''); setSchedInterviewer(''); setSchedMeetingLink(''); setSchedDuration(30); setSchedNotes(''); setSchedSendTest(false);
+    } catch (err) {
+      console.error('Schedule error:', err);
+      toast.error(err.message || 'Failed to schedule interview');
+      // revert optimistic update
+      setCandidates(prevCandidates);
+      if (prevSelected) setSelectedCandidate(prevSelected);
+    } finally {
+      setSchedLoading(false);
     }
   };
 
@@ -136,21 +249,26 @@ export default function AllCandidatesPage() {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to update status");
+        const body = await response.json().catch(() => null);
+        throw new Error(body?.error || "Failed to update status");
       }
 
-      // Update local state
+      const updated = await response.json();
+
+      // Update local state with returned row
       setCandidates((prev) =>
-        prev.map((c) =>
-          c.id === candidateId ? { ...c, status: newStatus } : c
-        )
+        prev.map((c) => (c.id === candidateId ? { ...c, ...updated } : c))
       );
+
+      if (selectedCandidate && selectedCandidate.id === candidateId) {
+        setSelectedCandidate((prev) => ({ ...prev, ...updated }));
+      }
 
       toast.success(`Candidate ${newStatus}`);
       setDialogOpen(false);
     } catch (error) {
       console.error("Error updating status:", error);
-      toast.error("Failed to update candidate status");
+      toast.error(error.message || "Failed to update candidate status");
     }
   };
 
@@ -461,6 +579,7 @@ export default function AllCandidatesPage() {
             <div className="grid grid-cols-1 gap-4 animate-in fade-in">
               {filteredCandidates.map((candidate, index) => {
                 const statusInfo = getStatusBadge(candidate.status);
+                const expandedCard = ["shortlisted", "rejected", "interviewing", "interview_scheduled"].includes(candidate.status);
                 return (
                   <div
                     key={candidate.id}
@@ -468,10 +587,10 @@ export default function AllCandidatesPage() {
                       setSelectedCandidate(candidate);
                       setDialogOpen(true);
                     }}
-                    className={`bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-md hover:shadow-xl hover:border-purple-400 dark:hover:border-purple-500 transition-all duration-300 group overflow-hidden cursor-pointer transform hover:scale-102 hover:-translate-y-0.5 ${selectedCandidates.includes(candidate.id)
+                    className={`bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-md hover:shadow-xl hover:border-purple-400 dark:hover:border-purple-500 transition-all duration-300 group ${selectedCandidates.includes(candidate.id)
                       ? "ring-2 ring-purple-500 border-purple-500"
                       : ""
-                      }`}
+                      } ${expandedCard ? 'max-h-144 overflow-y-auto' : 'overflow-hidden'} cursor-pointer transform hover:scale-102 hover:-translate-y-0.5`}
                   >
                     {/* Header Gradient Bar */}
                     <div className="h-1 bg-linear-to-r from-purple-400 to-pink-500"></div>
@@ -565,6 +684,76 @@ export default function AllCandidatesPage() {
                           </div>
                         </div>
                       )}
+
+                      {/* Expanded Interview / Status Details when applicable */}
+                      {(["shortlisted", "rejected", "interviewing", "interview_scheduled"].includes(candidate.status)) && (
+                        <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+                          <h4 className="text-sm font-semibold mb-2 dark:text-gray-100">Status Details</h4>
+
+                          {/* Interview details (if present) */}
+                          {(candidate.status === 'interviewing' || candidate.status === 'interview_scheduled') && (
+                            <div className="text-sm space-y-2">
+                              {candidate.scheduled_at && (
+                                <div>
+                                  <strong>Scheduled:</strong> <span className="ml-2">{new Date(candidate.scheduled_at).toLocaleString()}</span>
+                                </div>
+                              )}
+
+                              {candidate.interviewer_id && (
+                                <div>
+                                  <strong>Interviewer ID:</strong> <span className="ml-2">{candidate.interviewer_id}</span>
+                                </div>
+                              )}
+
+                              {candidate.meeting_link && (
+                                <div>
+                                  <strong>Meeting Link:</strong> <a className="ml-2 text-blue-600 hover:underline" href={candidate.meeting_link} target="_blank" rel="noreferrer">Open link</a>
+                                </div>
+                              )}
+
+                              {candidate.interview_mode && (
+                                <div>
+                                  <strong>Mode:</strong> <span className="ml-2">{candidate.interview_mode}</span>
+                                </div>
+                              )}
+
+                              {candidate.interview_duration_minutes && (
+                                <div>
+                                  <strong>Duration:</strong> <span className="ml-2">{candidate.interview_duration_minutes} mins</span>
+                                </div>
+                              )}
+
+                              {candidate.interviewer_notes && (
+                                <div>
+                                  <strong>Notes:</strong>
+                                  <div className="mt-1 ml-2 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{candidate.interviewer_notes}</div>
+                                </div>
+                              )}
+
+                              {candidate.test_token && (
+                                <div>
+                                  <strong>Assessment:</strong> <a className="ml-2 text-blue-600 hover:underline" href={`/test/${candidate.test_token}`}>Open Test</a>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Generic info for shortlisted/rejected */}
+                          {candidate.status === 'shortlisted' && (
+                            <div className="text-sm text-gray-700 dark:text-gray-300">
+                              <p className="mb-2">This candidate was shortlisted — consider scheduling an interview or sending an assessment.</p>
+                              {candidate.updated_at && <div><strong>Updated:</strong> <span className="ml-2">{new Date(candidate.updated_at).toLocaleString()}</span></div>}
+                            </div>
+                          )}
+
+                          {candidate.status === 'rejected' && (
+                            <div className="text-sm text-gray-700 dark:text-gray-300">
+                              <p className="mb-2">Candidate was rejected. You can leave notes in the candidate details modal.</p>
+                              {candidate.updated_at && <div><strong>Updated:</strong> <span className="ml-2">{new Date(candidate.updated_at).toLocaleString()}</span></div>}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -589,15 +778,25 @@ export default function AllCandidatesPage() {
               <>
                 <div className="space-y-6">
                   {/* Header */}
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h3 className="text-2xl font-bold dark:text-gray-100">
-                        {selectedCandidate.name}
-                      </h3>
-                      <p className="text-gray-600 dark:text-gray-400 mt-1">
-                        Applied for: {getJobTitle(selectedCandidate.job_id)}
-                      </p>
-                    </div>
+<div className="flex items-start justify-between gap-4">
+                        <div className="flex items-center gap-4">
+                          <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-gray-700 overflow-hidden flex items-center justify-center">
+                            {selectedCandidate.profile_picture_url ? (
+                              <Image src={selectedCandidate.profile_picture_url} alt="profile" width={64} height={64} className="object-cover w-full h-full" />
+                            ) : (
+                              <span className="text-xl text-slate-500">👤</span>
+                            )}
+                          </div>
+                          <div>
+                            <h3 className="text-2xl font-bold dark:text-gray-100">
+                              {selectedCandidate.name}
+                            </h3>
+                            <p className="text-gray-600 dark:text-gray-400 mt-1">
+                              Applied for: {getJobTitle(selectedCandidate.job_id)}
+                            </p>
+                          </div>
+                        </div>
+
                     <div
                       className={`text-4xl font-bold px-6 py-3 rounded-lg ${getScoreColor(
                         selectedCandidate.resume_match_score || 0
@@ -694,7 +893,85 @@ export default function AllCandidatesPage() {
                       </>
                     )}
 
-                  {/* Cover Letter */}
+                  {/* Schedule Interview (always visible in details) */}
+                  <Separator className="dark:bg-gray-700" />
+                  <div ref={scheduleSectionRef}>
+                    <h4 className="font-semibold mb-3 dark:text-gray-100">Schedule Interview</h4>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Date & Time</label>
+                        <input
+                          type="datetime-local"
+                          value={scheduledAt}
+                          onChange={(e) => setScheduledAt(e.target.value)}
+                          className="mt-1 w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Interviewer</label>
+                        <select
+                          value={schedInterviewer}
+                          onChange={(e) => setSchedInterviewer(e.target.value)}
+                          className="mt-1 w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700"
+                        >
+                          <option value="">(None)</option>
+                          {interviewers.map((iv) => (
+                            <option key={iv.id} value={iv.id}>{iv.name} {iv.title ? ` · ${iv.title}` : ''}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Meeting Link</label>
+                        <input
+                          type="text"
+                          value={schedMeetingLink}
+                          onChange={(e) => setSchedMeetingLink(e.target.value)}
+                          className="mt-1 w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Duration (mins)</label>
+                        <input
+                          type="number"
+                          value={schedDuration}
+                          onChange={(e) => setSchedDuration(parseInt(e.target.value || '0'))}
+                          className="mt-1 w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700"
+                        />
+                      </div>
+
+                      <div className="md:col-span-2">
+                        <label className="text-sm font-medium text-gray-700">Notes / Instructions</label>
+                        <textarea
+                          value={schedNotes}
+                          onChange={(e) => setSchedNotes(e.target.value)}
+                          className="mt-1 w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700 h-24"
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-3 md:col-span-2">
+                        <label className="inline-flex items-center gap-2">
+                          <input type="checkbox" checked={schedSendTest} onChange={(e) => setSchedSendTest(e.target.checked)} />
+                          <span className="text-sm">Send assessment link</span>
+                        </label>
+
+                        <Button onClick={() => handleSchedule(selectedCandidate.id)} disabled={schedLoading}>
+                          {schedLoading ? 'Scheduling...' : 'Save & Notify'}
+                        </Button>
+
+                        <Button variant="outline" onClick={() => {
+                          setScheduledAt(""); setSchedInterviewer(""); setSchedMeetingLink(""); setSchedDuration(30); setSchedNotes(""); setSchedSendTest(false);
+                        }}>
+                          Reset
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Resume */}
                   {selectedCandidate.cover_letter && (
                     <>
                       <Separator className="dark:bg-gray-700" />
@@ -755,12 +1032,34 @@ export default function AllCandidatesPage() {
                       {selectedCandidate.status !== "interviewing" && (
                         <Button
                           variant="outline"
-                          onClick={() =>
-                            updateCandidateStatus(
-                              selectedCandidate.id,
-                              "interviewing"
-                            )
-                          }
+                          onClick={() => {
+                            // Ensure candidate dialog is open and give immediate feedback
+                            setDialogOpen(true);
+                            try { toast && toast.info && toast.info('Opening schedule section...'); } catch (e) {}
+
+                            // Prefill fields
+                            setScheduledAt(selectedCandidate.scheduled_at ? (() => {
+                              const d = new Date(selectedCandidate.scheduled_at);
+                              const pad = (n) => String(n).padStart(2, '0');
+                              return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+                            })() : "");
+                            setSchedInterviewer(selectedCandidate.interviewer_id || "");
+                            setSchedMeetingLink(selectedCandidate.meeting_link || "");
+                            setSchedMode(selectedCandidate.interview_mode || "virtual");
+                            setSchedDuration(selectedCandidate.interview_duration_minutes || 30);
+                            setSchedNotes(selectedCandidate.interviewer_notes || "");
+
+                            // Scroll schedule section into view and focus the datetime input
+                            setTimeout(() => {
+                              try {
+                                scheduleSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                const input = scheduleSectionRef.current?.querySelector('input[type="datetime-local"]');
+                                if (input) input.focus();
+                              } catch (e) {
+                                console.warn('Failed to scroll to schedule section', e);
+                              }
+                            }, 120);
+                          }}
                         >
                           Schedule Interview
                         </Button>

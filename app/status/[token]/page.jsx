@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import NavBar from "@/components/NavBar";
+import { useRouter } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -77,29 +79,54 @@ export default function StatusPage() {
   const [error, setError] = useState(null);
 
   const token = params.token;
+  const router = useRouter();
 
-  useEffect(() => {
-    if (token) {
-      fetchApplicationStatus();
+  const startTest = () => {
+    // Open admin test start page for this job (pass jobId)
+    const jobId = application?.job_id;
+    if (!jobId) {
+      // No job available; open mail client to contact HR
+      window.location.href = 'mailto:hr@company.com?subject=Test%20Request';
+      return;
     }
-  }, [token]);
+    router.push(`/admin/test/start?jobId=${encodeURIComponent(jobId)}`);
+  };
 
-  const fetchApplicationStatus = async () => {
+
+
+  const fetchApplicationStatus = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Fetch application by token
-      const appResponse = await fetch(
-        `/api/applications?token=${encodeURIComponent(token)}`
-      );
-      const appData = await appResponse.json();
+      // Fetch application by token first (public applications)
+      let app = null;
+      try {
+        const appResponse = await fetch(
+          `/api/applications?token=${encodeURIComponent(token)}`
+        );
+        const appData = await appResponse.json();
 
-      if (!appResponse.ok || !appData || appData.length === 0) {
-        throw new Error("Application not found. Please check your token.");
+        if (appResponse.ok && appData && appData.length > 0) {
+          app = Array.isArray(appData) ? appData[0] : appData;
+        }
+      } catch (err) {
+        console.warn('Token lookup failed:', err);
       }
 
-      const app = Array.isArray(appData) ? appData[0] : appData;
+      // If token lookup returned nothing, fall back to lookup by ID (used for internal links)
+      if (!app) {
+        const idResp = await fetch(`/api/applications?id=${encodeURIComponent(token)}`);
+        const idData = await idResp.json();
+        if (idResp.ok && idData && idData.length > 0) {
+          app = Array.isArray(idData) ? idData[0] : idData;
+        }
+      }
+
+      if (!app) {
+        throw new Error("Application not found. Please check your token or ID.");
+      }
+
       setApplication(app);
 
       // Fetch job details
@@ -115,7 +142,13 @@ export default function StatusPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
+
+  useEffect(() => {
+    if (token) {
+      fetchApplicationStatus();
+    }
+  }, [token, fetchApplicationStatus]);
 
   if (loading) {
     return (
@@ -159,20 +192,37 @@ export default function StatusPage() {
   const StatusIcon = statusInfo.icon;
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <>
+      <NavBar />
+      <div className="min-h-screen bg-gray-50 py-12">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="mb-8">
-          <Button asChild variant="ghost" className="mb-4">
-            <Link href="/jobs">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Jobs
-            </Link>
-          </Button>
-          <h1 className="text-3xl font-bold text-gray-900">
-            Application Status
-          </h1>
-          <p className="text-gray-600 mt-2">Track your application progress</p>
+        <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <Button asChild variant="ghost" className="mb-4">
+              <Link href="/jobs">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to Jobs
+              </Link>
+            </Button>
+            <h1 className="text-3xl font-bold text-gray-900">
+              Application Status
+            </h1>
+            <p className="text-gray-600 mt-2">Track your application progress</p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Button
+              onClick={startTest}
+              className="bg-cyan-600 hover:bg-cyan-700 text-white"
+              disabled={!application?.test_token && !token}
+            >
+              Start Test
+            </Button>
+            {!application?.test_token && (
+              <span className="text-sm text-gray-500 hidden sm:inline">Test not available — <a href="mailto:hr@company.com" className="text-blue-600 hover:underline">Contact HR</a></span>
+            )}
+          </div>
         </div>
 
         {/* Status Card */}
@@ -220,6 +270,13 @@ export default function StatusPage() {
                   <Building2 className="h-4 w-4" />
                   {job.location}
                 </p>
+
+                {application.scheduled_at && (
+                  <div className="mt-3">
+                    <label className="text-sm font-medium text-gray-700">Interview Time</label>
+                    <p className="text-gray-900">{new Date(application.scheduled_at).toLocaleString()}</p>
+                  </div>
+                )}
               </div>
             )}
 
@@ -299,32 +356,67 @@ export default function StatusPage() {
         {/* Next Steps */}
         <Card>
           <CardHeader>
-            <CardTitle>What's Next?</CardTitle>
+            <CardTitle>What&apos;s Next?</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
               {application.status === "submitted" && (
                 <p className="text-gray-700">
-                  Your application is being reviewed by our hiring team. We'll
-                  notify you via email if you're shortlisted for the next round.
+                  Your application is being reviewed by our hiring team. We&apos;ll
+                  notify you via email if you&apos;re shortlisted for the next round.
                 </p>
               )}
               {application.status === "shortlisted" && (
                 <p className="text-gray-700">
-                  Congratulations! You've been shortlisted. Check your email for
+                  Congratulations! You&apos;ve been shortlisted. Check your email for
                   next steps, which may include an assessment or interview
                   invitation.
                 </p>
               )}
-              {application.status === "interviewing" && (
-                <p className="text-gray-700">
-                  You're in the interview stage. Please check your email for
-                  interview scheduling details and preparation materials.
-                </p>
+                      {(application.status === "interviewing" || application.status === "interview_scheduled") && (
+                <div className="space-y-3">
+                  <p className="text-gray-700">
+                    You&apos;re in the interview stage. Please check your email for
+                    interview scheduling details and preparation materials.
+                  </p>
+
+                  {/* Show scheduled date/time if available */}
+                  {application.scheduled_at && (
+                    <div className="mt-2">
+                      <label className="text-sm font-medium text-gray-700">Scheduled</label>
+                      <p className="text-gray-900">{new Date(application.scheduled_at).toLocaleString()}</p>
+                    </div>
+                  )}
+
+                  {/* Company rules */}
+                  <div className="mt-4 p-4 rounded-md bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
+                    <h4 className="text-sm font-semibold text-gray-900 mb-2">Company Rules & Interview Guidelines</h4>
+                    <ul className="list-disc list-inside text-gray-700 space-y-1 text-sm">
+                      <li>Arrive 5–10 minutes early and keep your camera on for virtual interviews.</li>
+                      <li>Have a stable internet connection and a quiet, distraction-free environment.</li>
+                      <li>Bring valid ID for on-site interviews if requested.</li>
+                      <li>Be prepared to discuss your resume and past experience.</li>
+                    </ul>
+                  </div>
+
+                  {/* Assessment / Test CTA when available */}
+                  {application.test_token && (
+                    <div className="mt-4 p-4 rounded-md bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
+                      <h4 className="text-sm font-semibold text-gray-900 mb-2">Assessment</h4>
+                      <p className="text-gray-700 text-sm mb-3">You have been invited to complete an assessment as part of this interview. Completing and passing the test may be required to progress.</p>
+                      <div className="flex items-center gap-3">
+                        <Button asChild>
+                          <Link href={`/test/${application.test_token}`}>Take Assessment</Link>
+                        </Button>
+                        <a href="#" className="text-sm text-gray-500">Need help? Contact HR</a>
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
               {application.status === "offered" && (
                 <p className="text-gray-700">
-                  We've extended an offer! Check your email for the offer letter
+                  We&apos;ve extended an offer! Check your email for the offer letter
                   and next steps to join our team.
                 </p>
               )}
@@ -336,7 +428,7 @@ export default function StatusPage() {
               )}
               {application.status === "rejected" && (
                 <p className="text-gray-700">
-                  While we won't be moving forward with your application at this
+                  While we won&apos;t be moving forward with your application at this
                   time, we appreciate your interest and encourage you to apply
                   for other positions that match your skills.
                 </p>
@@ -364,5 +456,6 @@ export default function StatusPage() {
         </div>
       </div>
     </div>
+    </>
   );
 }

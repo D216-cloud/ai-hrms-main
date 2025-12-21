@@ -27,6 +27,7 @@ export default function TestPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [showSaved, setShowSaved] = useState(false);
   const [test, setTest] = useState(null);
   const [application, setApplication] = useState(null);
   const [answers, setAnswers] = useState([]);
@@ -35,6 +36,8 @@ export default function TestPage() {
   const [testStarted, setTestStarted] = useState(false);
   const [testCompleted, setTestCompleted] = useState(false);
   const [results, setResults] = useState(null);
+  const [loadError, setLoadError] = useState(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (params.token) {
@@ -67,18 +70,35 @@ export default function TestPage() {
       const appResponse = await fetch(
         `/api/applications?testToken=${params.token}`
       );
-      const appData = await appResponse.json();
+      const appDataRaw = await appResponse.json();
 
       if (!appResponse.ok) {
         throw new Error("Invalid test link");
       }
 
-      // Check if test already taken
-      if (appData.test_score && appData.test_score > 0) {
+      const appData = Array.isArray(appDataRaw) ? appDataRaw[0] : appDataRaw;
+      if (!appData) throw new Error("Invalid test link");
+
+      // Check if test already taken (support token-based stored fields)
+      const hasSubmitted = Boolean(
+        (appData.test_score !== undefined && appData.test_score !== null) ||
+        appData.test_submitted_at ||
+        appData.raw?.test_submitted_at ||
+        (appData.raw && (appData.raw.test_score !== null && appData.raw.test_score !== undefined))
+      );
+
+      if (hasSubmitted) {
+        // Determine score values from available fields
+        const testScore = appData.test_score ?? appData.raw?.test_score ?? null;
+        const overallScore = appData.overall_score ?? appData.raw?.overall_score ?? null;
+
         setTestCompleted(true);
         setResults({
-          score: appData.test_score,
-          passed: appData.test_score >= 60,
+          score: testScore !== null ? testScore : (overallScore ?? null),
+          overallScore: overallScore,
+          passed: (testScore !== null ? testScore : (overallScore ?? 0)) >= 60,
+          correctAnswers: appData.raw?.correct_answers ?? null,
+          totalQuestions: appData.raw?.total_questions ?? null,
         });
         setLoading(false);
         return;
@@ -86,23 +106,43 @@ export default function TestPage() {
 
       setApplication(appData);
 
-      // Get test questions
+      // Get test questions from DB (if HR generated and saved)
       const testResponse = await fetch(
         `/api/tests/generate?jobId=${appData.job_id}`
       );
-      const testData = await testResponse.json();
 
-      if (!testResponse.ok) {
-        throw new Error("Test not found");
+      if (testResponse.ok) {
+        const testData = await testResponse.json();
+        setTest(testData);
+        setAnswers(new Array(testData.questions.length).fill(null));
+        setTimeRemaining((testData.duration_minutes || 30) * 60); // Convert to seconds
+      } else {
+        // If no stored test, request ad-hoc generation (20 MCQ) using the test token
+        console.warn('No stored test found, requesting AI-generated test');
+        const genResp = await fetch('/api/tests/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ testToken: params.token, count: 20 }),
+        });
+
+        const genData = await genResp.json();
+        if (!genResp.ok || !genData.questions) {
+          throw new Error(genData.error || 'Failed to generate test');
+        }
+
+        setTest({
+          questions: genData.questions,
+          duration_minutes: 30,
+          passing_score: 60,
+        });
+        setAnswers(new Array(genData.questions.length).fill(null));
+        setTimeRemaining(30 * 60);
       }
-
-      setTest(testData);
-      setAnswers(new Array(testData.questions.length).fill(null));
-      setTimeRemaining(testData.duration_minutes * 60); // Convert to seconds
     } catch (error) {
       console.error("Error fetching test:", error);
-      toast.error(error.message || "Failed to load test");
-      router.push("/");
+      const msg = error?.message || "Failed to load test";
+      toast.error(msg);
+      setLoadError(msg);
     } finally {
       setLoading(false);
     }
@@ -142,6 +182,7 @@ export default function TestPage() {
     }
 
     setSubmitting(true);
+    const startTs = Date.now();
     try {
       const response = await fetch("/api/tests/submit", {
         method: "POST",
@@ -158,14 +199,48 @@ export default function TestPage() {
         throw new Error(data.error || "Failed to submit test");
       }
 
+      // Ensure at least 2s of loading UI before showing "Saved"
+      const elapsed = Date.now() - startTs;
+      const waitMs = Math.max(0, 2000 - elapsed);
+      if (waitMs > 0) await new Promise((r) => setTimeout(r, waitMs));
+
+      // Show saved state briefly
+      setShowSaved(true);
+      setSubmitting(false);
+      await new Promise((r) => setTimeout(r, 900));
+      setShowSaved(false);
+
+      // Store a local copy of the submission for the candidate (localStorage)
+      try {
+        const submissionRecord = {
+          applicationId: application?.id || null,
+          testToken: params.token,
+          score: data.score,
+          totalQuestions: data.totalQuestions,
+          correctAnswers: data.correctAnswers,
+          overallScore: data.overallScore || null,
+          submittedAt: new Date().toISOString(),
+          candidate: {
+            name: application?.name || null,
+            email: application?.email || null,
+            resume_url: application?.resume_url || null,
+          },
+        };
+
+        const key = `test_submission_${submissionRecord.applicationId || params.token}`;
+        localStorage.setItem(key, JSON.stringify(submissionRecord));
+      } catch (e) {
+        console.warn('Failed to save test submission locally', e);
+      }
+
       setResults(data);
       setTestCompleted(true);
       toast.success("Test submitted successfully!");
     } catch (error) {
       console.error("Error submitting test:", error);
-      toast.error(error.message || "Failed to submit test");
-    } finally {
       setSubmitting(false);
+      setShowSaved(false);
+      toast.error(error.message || "Failed to submit test");
     }
   };
 
@@ -183,6 +258,67 @@ export default function TestPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+      </div>
+    );
+  }
+
+  // Loading error
+  if (loadError) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-12">
+        <div className="max-w-md mx-auto px-4">
+          <Card>
+            <CardHeader>
+              <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                <Button
+                  onClick={() =>
+                    router.push(`/status/${application?.application_token}`)
+                  }
+                >
+                  View Application Status
+                </Button>
+
+                <Button variant="outline" onClick={() => router.push("/jobs")}>Browse More Jobs</Button>
+
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    if (!params.token) return toast.error('Missing token');
+                    setSaving(true);
+                    try {
+                      const res = await fetch('/api/tests/save', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          testToken: params.token,
+                          score: results?.score ?? null,
+                          overallScore: results?.overallScore ?? null,
+                          correctAnswers: results?.correctAnswers ?? null,
+                          totalQuestions: results?.totalQuestions ?? null,
+                        }),
+                      });
+                      const body = await res.json();
+                      if (!res.ok) throw new Error(body.error || 'Failed to save');
+                      toast.success(body.message || 'Saved to database');
+                    } catch (e) {
+                      console.error('Save error:', e);
+                      toast.error(e.message || 'Failed to save');
+                    } finally {
+                      setSaving(false);
+                    }
+                  }}
+                  disabled={saving}
+                >
+                  {saving ? 'Saving...' : 'Save Results'}
+                </Button>
+                <Button asChild>
+                  <a href={`mailto:hr@company.com?subject=Invalid%20Test%20Link%20%7C%20${params.token}`}>Contact HR</a>
+                </Button>
+                <Button variant="outline" onClick={() => router.push('/')}>Return Home</Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }
@@ -215,15 +351,16 @@ export default function TestPage() {
             <CardContent className="space-y-6">
               <div className="text-center space-y-2">
                 <div className="text-5xl font-bold text-gray-900">
-                  {results.score}%
+                  {results.score ?? results.overallScore ?? '—'}%
                 </div>
                 <p className="text-gray-600">
                   {results.correctAnswers ||
-                    results.score /
-                      (100 / (test?.questions?.length || 10))}{" "}
-                  out of {test?.questions?.length || results.totalQuestions}{" "}
-                  questions correct
+                    (results.score ? Math.round((results.score / 100) * (test?.questions?.length || results.totalQuestions || 10)) : null) ||
+                    '—'} out of {test?.questions?.length || results.totalQuestions || '—'} questions correct
                 </p>
+                {results.overallScore !== undefined && results.overallScore !== null && (
+                  <p className="text-sm text-gray-500">Overall Score: <strong>{results.overallScore}%</strong></p>
+                )}
               </div>
 
               <div className="border-t pt-6">
@@ -329,15 +466,12 @@ export default function TestPage() {
                 Question {currentQuestion + 1} of {test.questions.length}
               </p>
             </div>
-            <div className="flex items-center gap-2 text-lg font-semibold">
-              <Clock className="h-5 w-5" />
-              <span
-                className={
-                  timeRemaining < 300 ? "text-red-600" : "text-gray-900"
-                }
-              >
-                {formatTime(timeRemaining)}
-              </span>
+            <div className="flex items-center gap-4">
+              <div className="text-xs text-gray-500">Time Remaining</div>
+              <div className={`flex items-center gap-2 ${timeRemaining < 300 ? 'text-red-600' : 'text-gray-900'}`}>
+                <Clock className="h-5 w-5" />
+                <span className="text-2xl font-bold">{formatTime(timeRemaining)}</span>
+              </div>
             </div>
           </div>
           <Progress value={progress} className="h-2" />
@@ -398,7 +532,7 @@ export default function TestPage() {
             {currentQuestion === test.questions.length - 1 ? (
               <Button
                 onClick={handleSubmit}
-                disabled={submitting}
+                disabled={submitting || showSaved}
                 size="lg"
                 className="min-w-[120px]"
               >
@@ -406,6 +540,11 @@ export default function TestPage() {
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Submitting...
+                  </>
+                ) : showSaved ? (
+                  <>
+                    <CheckCircle2 className="mr-2 h-4 w-4 text-green-600" />
+                    Saved
                   </>
                 ) : (
                   "Submit Test"

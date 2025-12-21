@@ -4,6 +4,7 @@ import Script from "next/script";
 import { Providers } from "@/components/Providers";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
+import VoiceCommandLoader from "@/app/components/VoiceCommandLoader";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -42,6 +43,8 @@ export default function RootLayout({ children }) {
         >
           <Providers>{children}</Providers>
           <Toaster />
+          {/* Voice command component auto-mounted for site-wide navigation */}
+          <VoiceCommandLoader />
         </ThemeProvider>
       </body>
     </html>

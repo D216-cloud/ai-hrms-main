@@ -14,6 +14,7 @@ export default function JobSeekerDashboard() {
   const [stats, setStats] = useState({
     applications: 0,
     interviews: 0,
+    nextInterview: null,
   });
 
   // Applications state for dashboard summary
@@ -48,10 +49,23 @@ export default function JobSeekerDashboard() {
       // Ensure applications is always an array
       const applications = Array.isArray(appsData.applications) ? appsData.applications : [];
 
+      // compute scheduled interviews from applications
+      const now = Date.now();
+      const scheduledApps = applications.filter(a => a.scheduled_at || (a.raw && a.raw.scheduled_at));
+      const upcoming = scheduledApps
+        .map(a => ({
+          date: a.scheduled_at || (a.raw && a.raw.scheduled_at),
+        }))
+        .map(s => ({ d: s.date ? new Date(s.date) : null }))
+        .filter(s => s.d && s.d.getTime() >= now)
+        .sort((a,b) => a.d - b.d);
+      const nextInterview = upcoming.length > 0 ? upcoming[0].d.toLocaleString() : null;
+
       // Update stats and also keep applications for dashboard preview
       setStats({
         applications: applications.length,
-        interviews: 0,
+        interviews: scheduledApps.length,
+        nextInterview,
       });
 
       setApplications(applications);
@@ -169,6 +183,7 @@ export default function JobSeekerDashboard() {
                 </div>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-500 mt-3 font-semibold">Next: Dec 15</p>
+              <p className="text-xs text-slate-500 dark:text-slate-500 mt-3 font-semibold">{stats.nextInterview ? `Next: ${stats.nextInterview}` : 'No upcoming interviews'}</p>
             </div>
 
             {/* Saved Jobs Card */}

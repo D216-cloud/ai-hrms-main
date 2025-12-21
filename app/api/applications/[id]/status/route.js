@@ -9,7 +9,9 @@ import {
   interviewScheduledTemplate,
   offerExtendedTemplate,
   applicationHiredTemplate,
+  testInvitationTemplate,
 } from "@/lib/emailTemplates";
+import crypto from "crypto";
 
 // PATCH /api/applications/[id]/status - Update application status
 export async function PATCH(request, { params }) {
@@ -26,7 +28,7 @@ export async function PATCH(request, { params }) {
 
     const { id } = await params;
     const body = await request.json();
-    const { status } = body;
+    const { status, scheduled_at } = body;
 
     // Validate status
     const validStatuses = [
@@ -93,26 +95,111 @@ export async function PATCH(request, { params }) {
       }
     }
 
+    const { sendTest } = body || {};
+
     // Update application status in the correct table
     let updateResponse;
+    const updateObj = { status };
+
+    // Accept optional interview fields from body
+    const {
+      interviewer_id,
+      meeting_link,
+      interview_mode,
+      interview_duration_minutes,
+      interviewer_notes,
+    } = body || {};
+
+    if (scheduled_at) {
+      // validate ISO date
+      const d = new Date(scheduled_at);
+      if (!isNaN(d.getTime())) updateObj.scheduled_at = scheduled_at;
+
+      // mark who scheduled it
+      updateObj.interview_sent_at = new Date().toISOString();
+      updateObj.interview_sent_by = session.user.id || null;
+    }
+
+    // apply optional interviewer fields when provided
+    if (interviewer_id) updateObj.interviewer_id = interviewer_id;
+    if (meeting_link) updateObj.meeting_link = meeting_link;
+    if (interview_mode) updateObj.interview_mode = interview_mode;
+    if (typeof interview_duration_minutes !== 'undefined') updateObj.interview_duration_minutes = interview_duration_minutes;
+    if (interviewer_notes) updateObj.interviewer_notes = interviewer_notes;
+
     if (targetTable === "job_applications") {
       updateResponse = await supabaseAdmin
         .from("job_applications")
-        .update({ status })
+        .update(updateObj)
         .eq("id", id)
-        .select("*, jobs(title), job_seekers(full_name, email)")
+        .select("*, scheduled_at, interviewer_id, meeting_link, interview_mode, interview_duration_minutes, interviewer_notes, test_token, test_sent_at, jobs(title), job_seekers(full_name, email)")
         .single();
     } else {
       // public applications table
       updateResponse = await supabaseAdmin
         .from("applications")
-        .update({ status })
+        .update(updateObj)
         .eq("id", id)
-        .select("*, jobs(title)")
+        .select("*, scheduled_at, interviewer_id, meeting_link, interview_mode, interview_duration_minutes, interviewer_notes, test_token, test_sent_at, jobs(title)")
         .single();
     }
 
     const { data: application, error } = updateResponse || {};
+
+    if (error || !application) {
+      console.error("Error updating application:", error);
+      return NextResponse.json(
+        { error: "Failed to update application" },
+        { status: 500 }
+      );
+    }
+
+    // If HR asked to send an assessment link, generate token & send
+    if (sendTest) {
+      try {
+        const testToken = crypto.randomBytes(32).toString("hex");
+
+        if (targetTable === "job_applications") {
+          await supabaseAdmin
+            .from("job_applications")
+            .update({ test_token: testToken, test_sent_at: new Date().toISOString(), status: 'interviewing' })
+            .eq("id", id);
+        } else {
+          await supabaseAdmin
+            .from("applications")
+            .update({ test_token: testToken, test_sent_at: new Date().toISOString(), status: 'interviewing' })
+            .eq("id", id);
+        }
+
+        // Send test invite email
+        const candidateEmail = application.job_seekers?.email || application.email;
+        const candidateName = application.job_seekers?.full_name || application.name || "Candidate";
+        const jobTitle = application.jobs?.title || application.title || "Position";
+
+        // Try to look up a job-level test duration; fallback to 30
+        const { data: jobTest } = await supabaseAdmin.from('tests').select('duration_minutes').eq('job_id', application.job_id).single();
+        const duration = jobTest?.duration_minutes || 30;
+
+        const emailTemplate = testInvitationTemplate(candidateName, jobTitle, testToken, duration);
+        await sendEmail({ to: candidateEmail, subject: `📝 Assessment Invitation - ${jobTitle}`, html: emailTemplate });
+      } catch (err) {
+        console.error('Failed to create/send test link:', err);
+        // continue - don't block status update
+      }
+    }
+
+    // If interviewer and scheduled_at provided, update interviewer last_scheduled info (timezone column)
+    try {
+      if (updateObj.interviewer_id && updateObj.scheduled_at) {
+        // fetch interviewer timezone
+        const { data: iv, error: ivErr } = await supabaseAdmin.from('interviewers').select('timezone').eq('id', updateObj.interviewer_id).single();
+        const tz = iv?.timezone || null;
+        await supabaseAdmin.from('interviewers').update({ last_scheduled_at: updateObj.scheduled_at, last_scheduled_timezone: tz }).eq('id', updateObj.interviewer_id);
+      }
+    } catch (err) {
+      console.error('Failed to update interviewer schedule info:', err);
+      // don't fail the main request
+    }
 
     if (error || !application) {
       console.error("Error updating application:", error);
@@ -170,11 +257,13 @@ async function sendStatusUpdateEmail(application, newStatus) {
         subject = `Update on Your Application - ${jobTitle}`;
         break;
 
-      case "interviewing":
+        case "interviewing":
+      case "interview_scheduled":
         emailTemplate = interviewScheduledTemplate(
           name,
           jobTitle,
-          application_token
+          application_token,
+          application.scheduled_at || null
         );
         subject = `📅 Interview Invitation - ${jobTitle}`;
         break;

@@ -4,7 +4,14 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import NavBar from "@/components/NavBar";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Calendar, Clock, MapPin, Briefcase } from "lucide-react";
 
 export default function InterviewsPage() {
@@ -12,6 +19,34 @@ export default function InterviewsPage() {
   const router = useRouter();
   const [interviews, setInterviews] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case "applied":
+      case "submitted":
+        return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300";
+      case "under_review":
+      case "reviewing":
+        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300";
+      case "shortlisted":
+      case "interview_scheduled":
+      case "interviewing":
+        return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300";
+      case "rejected":
+        return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300";
+      case "accepted":
+      case "hired":
+        return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300";
+      default:
+        return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300";
+    }
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return "TBD";
+    const d = new Date(dateString);
+    return d.toLocaleString();
+  };
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -56,7 +91,6 @@ export default function InterviewsPage() {
 
   return (
     <div className="min-h-screen bg-linear-to-b from-white via-slate-50 to-white dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
-      <NavBar />
       
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
         {/* Header */}
@@ -70,46 +104,33 @@ export default function InterviewsPage() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 animate-in fade-in slide-in-from-bottom duration-500 delay-100">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6">
-            <div className="flex items-center">
-              <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400">
-                <Calendar className="w-6 h-6" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mb-8 animate-in fade-in slide-in-from-bottom duration-500 delay-100">
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardContent className="pt-6">
+              <div className="text-center">
+                <p className="text-3xl md:text-4xl font-bold text-purple-600 dark:text-purple-400">{interviews.length}</p>
+                <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400 mt-1">Total Interviews</p>
               </div>
-              <div className="ml-4">
-                <p className="text-sm text-gray-600 dark:text-gray-400">Total Interviews</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{interviews.length}</p>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardContent className="pt-6">
+              <div className="text-center">
+                <p className="text-3xl md:text-4xl font-bold text-blue-600 dark:text-blue-400">{interviews.filter(i => new Date(i.applied_at) > new Date()).length}</p>
+                <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400 mt-1">Upcoming</p>
               </div>
-            </div>
-          </div>
-          
-          <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6">
-            <div className="flex items-center">
-              <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
-                <Clock className="w-6 h-6" />
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardContent className="pt-6">
+              <div className="text-center">
+                <p className="text-3xl md:text-4xl font-bold text-green-600 dark:text-green-400">{[...new Set(interviews.map(i => i.jobs?.company || "Unknown"))].length}</p>
+                <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400 mt-1">Companies</p>
               </div>
-              <div className="ml-4">
-                <p className="text-sm text-gray-600 dark:text-gray-400">Upcoming</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {interviews.filter(i => new Date(i.applied_at) > new Date()).length}
-                </p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6">
-            <div className="flex items-center">
-              <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400">
-                <Briefcase className="w-6 h-6" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm text-gray-600 dark:text-gray-400">Companies</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {[...new Set(interviews.map(i => i.jobs?.company || "Unknown"))].length}
-                </p>
-              </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Interviews List */}
@@ -136,24 +157,22 @@ export default function InterviewsPage() {
                       )}
                     </p>
                     
-                    <div className="flex flex-wrap gap-2 mt-3">
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400">
-                        <Calendar className="w-3 h-3 mr-1" />
-                        Scheduled
-                      </span>
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
-                        <Clock className="w-3 h-3 mr-1" />
-                        {new Date(interview.applied_at).toLocaleDateString()}
-                      </span>
+                    <div className="flex flex-wrap items-center gap-3 mt-3">
+                      <Badge className={getStatusColor(interview.status)}>
+                        {interview.status ? interview.status.replace('_', ' ').toUpperCase() : 'SCHEDULED'}
+                      </Badge>
+                      <div className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2">
+                        <Clock className="w-4 h-4" />
+                        <span>{formatDate(interview.scheduled_at || interview.applied_at)}</span>
+                      </div>
                     </div>
                   </div>
                   
                   <div className="flex flex-col sm:flex-row gap-3">
-                    <Link 
-                      href={`/status/${interview.id}`}
-                      className="inline-flex items-center justify-center px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors"
-                    >
-                      View Details
+                    <Link href={`/status/${interview.id}`}>
+                      <Button className="inline-flex items-center px-4 py-2">
+                        View Details
+                      </Button>
                     </Link>
                   </div>
                 </div>

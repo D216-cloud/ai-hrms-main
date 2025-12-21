@@ -1,23 +1,75 @@
+import { NextResponse } from 'next/server';
+import { generateMCQs } from '../../../../lib/openai';
+
+export async function GET(req) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const jobId = searchParams.get('jobId');
+    // For now, no stored test retrieval implemented - return 404 to allow client to fall back to generation
+    return NextResponse.json({ ok: false, error: 'No stored test available' }, { status: 404 });
+  } catch (err) {
+    console.error('Error in GET /api/tests/generate:', err);
+    return NextResponse.json({ ok: false, error: 'Failed' }, { status: 500 });
+  }
+}
+
+export async function POST(req) {
+  try {
+    const body = await req.json();
+    const { jobId, testToken, skills = [], count = 20, jobTitle = 'Skill Test', experienceYears = 2 } = body || {};
+
+    const skillsArray = Array.isArray(skills) ? skills : (typeof skills === 'string' ? skills.split(',').map(s=>s.trim()).filter(Boolean) : []);
+
+    const questions = await generateMCQs({ jobTitle, skills: skillsArray, experienceYears, count });
+
+    return NextResponse.json({ ok: true, questions });
+  } catch (err) {
+    console.error('Error in POST /api/tests/generate:', err?.message || err);
+    return NextResponse.json({ ok: false, error: err?.message || 'Failed to generate questions' }, { status: 500 });
+  }
+}
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
 import { generateMCQ } from "@/lib/openai";
 
-// POST /api/tests/generate - Generate MCQ test for a job (HR/Admin only)
+// POST /api/tests/generate - Generate MCQ test for a job (HR/Admin) OR generate ad-hoc for a candidate using a test token
 export async function POST(request) {
   try {
+    const body = await request.json();
+    const { jobId, testToken, count = 20, jobTitle: overrideTitle, skills: overrideSkills = [], experienceYears = 2 } = body || {};
+
+    // If a testToken is provided, allow public candidate generation without auth
+    if (testToken) {
+      // Verify application exists for this test token
+      const { data: application, error: appErr } = await supabaseAdmin
+        .from('applications')
+        .select('id, job_id, test_token, jobs(title)')
+        .eq('test_token', testToken)
+        .single();
+
+      if (appErr || !application) {
+        return NextResponse.json({ error: 'Invalid test token' }, { status: 404 });
+      }
+
+      const resolvedJobTitle = overrideTitle || application.jobs?.title || 'General Knowledge';
+
+      const questions = await generateMCQs({ jobTitle: resolvedJobTitle, skills: overrideSkills, experienceYears, count });
+
+      return NextResponse.json({ success: true, questions });
+    }
+
+    // Otherwise, require HR/Admin session to generate and save tests
     const session = await getServerSession(authOptions);
 
-    // Only HR and admin can generate tests
+    // Only HR and admin can generate tests for a job and save them
     if (
       !session ||
       (session.user.role !== "hr" && session.user.role !== "admin")
     ) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    const { jobId } = await request.json();
 
     if (!jobId) {
       return NextResponse.json(
@@ -55,10 +107,11 @@ export async function POST(request) {
     }
 
     // Generate MCQ questions using AI
-    const questions = await generateMCQ({
+    const questions = await generateMCQs({
       jobTitle: job.title,
       skills: job.skills || [],
       experienceYears: job.experience_min || 2,
+      count
     });
 
     // Validate questions format

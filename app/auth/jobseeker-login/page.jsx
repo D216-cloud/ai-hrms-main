@@ -61,19 +61,10 @@ function JobSeekerLoginForm() {
         });
 
         if (response.ok) {
-          toast.success("Account created! Signing you in...");
-          // Sign in after successful signup
-          const result = await signIn("credentials", {
-            email: formData.email,
-            password: formData.password,
-            role: "job_seeker", // Pass role
-            redirect: false,
-          });
-
-          if (!result?.error) {
-            router.push("/seeker/dashboard");
-            router.refresh();
-          }
+          toast.success("Account created! Please sign in to continue.");
+          // Require explicit sign-in after signup: switch to sign-in view
+          setIsSignUp(false);
+          setFormData({ ...formData, password: "" });
         } else {
           const error = await response.json();
           toast.error(error.message || "Failed to create account");

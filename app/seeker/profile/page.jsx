@@ -6,9 +6,10 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Loader2, Plus, Trash2, Upload, Eye, LogOut, Save, Check,
-  X, Mail, Phone, MapPin, User, Award, Briefcase, GraduationCap, FileText,
-  Camera, Star, Sparkles, Trophy
+  X, Mail, Phone, MapPin, User, Award, Briefcase, GraduationCap, FileText, Calendar,
+  Camera, Star, Sparkles, Trophy, Clock
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { CelebrationAnimation } from "@/components/CelebrationAnimation";
 
 export default function ProfilePage() {
@@ -54,6 +55,28 @@ export default function ProfilePage() {
   const [applications, setApplications] = useState([]);
   const [loadingApplications, setLoadingApplications] = useState(false);
 
+  // Interviews for this seeker (preview in profile)
+  const [interviews, setInterviews] = useState([]);
+  const [loadingInterviews, setLoadingInterviews] = useState(false);
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case "shortlisted":
+      case "interview_scheduled":
+      case "interviewing":
+        return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300";
+      case "rejected":
+        return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300";
+      default:
+        return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300";
+    }
+  };
+
+  const formatDate = (d) => {
+    if (!d) return 'TBD';
+    return new Date(d).toLocaleString();
+  };
+
   // Fetch profile data
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -66,10 +89,11 @@ export default function ProfilePage() {
         return;
       }
 
-      // Only fetch profile and applications for job seekers
+      // Only fetch profile, applications and interviews for job seekers
       if (session?.user?.role === "job_seeker") {
         fetchProfile();
         fetchApplications();
+        fetchInterviews();
       }
     }
   }, [status, session?.user?.role, router]);
@@ -118,6 +142,9 @@ export default function ProfilePage() {
       setLoadingApplications(true);
       console.log("Profile: Fetching applications for user:", session?.user?.email);
       const res = await fetch("/api/seeker/applications");
+
+      // applications fetch as before...
+
       if (res.ok) {
         const data = await res.json();
         console.log("Profile: Applications fetched:", data.applications?.length || 0);
@@ -129,6 +156,32 @@ export default function ProfilePage() {
       console.error("Error fetching applications:", error);
     } finally {
       setLoadingApplications(false);
+    }
+  };
+
+  const fetchInterviews = async () => {
+    try {
+      setLoadingInterviews(true);
+      const res = await fetch("/api/seeker/interviews");
+      if (!res.ok) throw new Error("Failed to fetch interviews");
+      const data = await res.json();
+      const interviewsData = data?.interviews || [];
+      console.log("Profile: Interviews fetched:", interviewsData?.length || 0);
+
+      if (Array.isArray(interviewsData)) {
+        const sorted = interviewsData.sort((a, b) => {
+          const aTime = a.scheduled_at ? new Date(a.scheduled_at).getTime() : 0;
+          const bTime = b.scheduled_at ? new Date(b.scheduled_at).getTime() : 0;
+          return bTime - aTime;
+        });
+        setInterviews(sorted);
+      } else {
+        setInterviews([]);
+      }
+    } catch (error) {
+      console.error("Error fetching interviews:", error);
+    } finally {
+      setLoadingInterviews(false);
     }
   };
 
@@ -439,6 +492,18 @@ export default function ProfilePage() {
                 <button className="inline-flex items-center gap-2 px-6 py-3 bg-linear-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white font-semibold rounded-lg transition-all transform hover:shadow-lg hover:-translate-y-0.5">
                   <Briefcase className="w-5 h-5" />
                   View My Applications
+                </button>
+              </Link>
+
+              <Link href="/seeker/interviews">
+                <button className="inline-flex items-center gap-2 px-4 py-3 bg-white/5 hover:bg-white/10 text-teal-700 dark:text-teal-300 font-semibold rounded-lg transition-all transform hover:shadow-sm">
+                  <Calendar className="w-5 h-5" />
+                  <span>Your Interviews</span>
+                  {loadingInterviews ? (
+                    <Loader2 className="w-4 h-4 animate-spin ml-2" />
+                  ) : (interviews?.length > 0 && (
+                    <span className="ml-2 inline-block px-2 py-0.5 bg-teal-100 text-teal-800 rounded-full text-xs font-semibold">{interviews.length}</span>
+                  ))}
                 </button>
               </Link>
             </div>
@@ -1079,6 +1144,49 @@ export default function ProfilePage() {
                     </p>
                   </div>
                 </div>
+              </div>
+            </div>
+
+            {/* Upcoming Interviews Section */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden hover:shadow-md transition animate-in fade-in slide-in-from-right-4 duration-500 delay-700">
+              <div className="px-6 py-6 flex items-center justify-between border-b border-gray-100 dark:border-gray-700">
+                <div className="flex items-center space-x-3">
+                  <div className="w-12 h-12 bg-teal-100 dark:bg-teal-900/30 rounded-lg flex items-center justify-center animate-in fade-in zoom-in duration-500">
+                    <Calendar className="w-6 h-6 text-teal-600 dark:text-teal-400" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Upcoming Interviews</h2>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Interviews scheduled for you</p>
+                  </div>
+                </div>
+                <Link href="/seeker/interviews">
+                  <button className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-semibold text-sm">View all</button>
+                </Link>
+              </div>
+
+              <div className="px-6 py-4">
+                {loadingInterviews ? (
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="w-5 h-5 animate-spin text-teal-600" />
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Loading interviews...</span>
+                  </div>
+                ) : (interviews && interviews.length > 0) ? (
+                  <ul className="space-y-3">
+                    {interviews.slice(0,3).map((iv) => (
+                      <li key={iv.id} className="flex items-start justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900 dark:text-white">{iv.job_title || 'Interview'}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">{formatDate(iv.scheduled_at || iv.applied_at)}</p>
+                        </div>
+                        <div className="text-xs">
+                          <Badge className={getStatusColor(iv.status)}>{iv.status ? iv.status.replace('_', ' ').toUpperCase() : 'SCHEDULED'}</Badge>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-gray-600 dark:text-gray-400">No upcoming interviews</p>
+                )}
               </div>
             </div>
 
