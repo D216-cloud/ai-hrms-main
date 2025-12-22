@@ -15,9 +15,15 @@ export default function middleware(req) {
     return NextResponse.next();
   }
 
-  // Allow public GET requests to job API endpoints
+  // Allow public GET requests to job API endpoints (job listing and job detail)
   if (method === "GET" && (pathname === "/api/jobs" || /^\/api\/jobs\/[^\/]+$/.test(pathname))) {
     console.log("Custom Middleware - Allowing public access to job endpoint");
+    return NextResponse.next();
+  }
+
+  // Allow public POST to apply for a job (candidates can submit applications without auth)
+  if (method === "POST" && /^\/api\/jobs\/[^\/]+\/apply$/.test(pathname)) {
+    console.log("Custom Middleware - Allowing public access to job apply endpoint");
     return NextResponse.next();
   }
 
