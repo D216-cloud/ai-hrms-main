@@ -21,9 +21,15 @@ export default function middleware(req) {
     return NextResponse.next();
   }
 
-  // Allow public POST to apply for a job (candidates can submit applications without auth)
-  if (method === "POST" && /^\/api\/jobs\/[^\/]+\/apply$/.test(pathname)) {
-    console.log("Custom Middleware - Allowing public access to job apply endpoint");
+  // Allow public access to job apply endpoint for all methods (handle POST and preflight OPTIONS, and optional trailing slash)
+  if (/^\/api\/jobs\/[^\/]+\/apply\/?$/.test(pathname)) {
+    console.log("Custom Middleware - Allowing public access to job apply endpoint (bypass middleware for ALL methods)");
+
+    // If it's an OPTIONS preflight, respond immediately with 204 No Content
+    if (method === "OPTIONS") {
+      return new NextResponse(null, { status: 204 });
+    }
+
     return NextResponse.next();
   }
 
