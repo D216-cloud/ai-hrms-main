@@ -1,6 +1,8 @@
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
 
+const ENABLE_ADMIN_BYPASS = process.env.ENABLE_ADMIN_BYPASS === "true";
+
 // Custom middleware function
 export default function middleware(req) {
   const pathname = req.nextUrl.pathname;
@@ -9,6 +11,12 @@ export default function middleware(req) {
   // Log for debugging
   console.log("Custom Middleware - Pathname:", pathname);
   console.log("Custom Middleware - Method:", method);
+
+  // Optional admin bypass (useful temporarily while debugging production auth issues)
+  if (ENABLE_ADMIN_BYPASS && pathname.startsWith("/admin")) {
+    console.log("Custom Middleware - Admin bypass enabled (ENV)");
+    return NextResponse.next();
+  }
 
   // Allow test-session endpoint for debugging
   if (pathname === "/api/test-session") {
@@ -51,8 +59,18 @@ export default function middleware(req) {
   // For all other routes, use withAuth
   return withAuth({
     callbacks: {
-      authorized: ({ token }) => {
+      authorized: ({ token, req }) => {
         console.log("Custom Middleware authorized callback - Token:", token);
+
+        // If token is missing, also log request cookies to help debug missing Set-Cookie issues
+        if (!token) {
+          try {
+            console.log("Custom Middleware - Request Cookies:", req.headers.get("cookie"));
+          } catch (err) {
+            console.log("Custom Middleware - Failed to read request cookies", err);
+          }
+        }
+
         return !!token;
       },
     },
