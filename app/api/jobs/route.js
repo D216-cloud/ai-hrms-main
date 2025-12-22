@@ -4,9 +4,25 @@ import { authOptions } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
 import { v4 as uuidv4 } from 'uuid';
 
+// CORS headers
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Accept, Origin",
+};
+
+// Helper function for consistent JSON responses with CORS
+function createJsonResponse(body, status = 200) {
+  return NextResponse.json(body, { status, headers: CORS_HEADERS });
+}
+
+// Add OPTIONS handler for CORS preflight requests
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
+}
+
 // GET /api/jobs - List all jobs (admin/hr) or active jobs (public)
-export async function GET(request) {
-  try {
+export async function GET(request) {  try {
     let session = null;
     try {
       session = await getServerSession(authOptions);
@@ -17,7 +33,6 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
     const createdByParam = searchParams.get("created_by");
-
     let query = supabaseAdmin.from("jobs").select("*");
 
     // If not authenticated or not hr/admin, show only active jobs
