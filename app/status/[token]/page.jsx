@@ -103,7 +103,7 @@ export default function StatusPage() {
       let app = null;
       try {
         const appResponse = await fetch(
-          `/api/applications?token=${encodeURIComponent(token)}`
+          `/api/job-applications?token=${encodeURIComponent(token)}`
         );
         const appData = await appResponse.json();
 
@@ -116,7 +116,7 @@ export default function StatusPage() {
 
       // If token lookup returned nothing, fall back to lookup by ID (used for internal links)
       if (!app) {
-        const idResp = await fetch(`/api/applications?id=${encodeURIComponent(token)}`);
+        const idResp = await fetch(`/api/job-applications?id=${encodeURIComponent(token)}`);
         const idData = await idResp.json();
         if (idResp.ok && idData && idData.length > 0) {
           app = Array.isArray(idData) ? idData[0] : idData;

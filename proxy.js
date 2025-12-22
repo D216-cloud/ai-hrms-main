@@ -21,8 +21,9 @@ export default function middleware(req) {
     return NextResponse.next();
   }
 
-  // Allow public access to job apply endpoint for all methods (handle POST and preflight OPTIONS, and optional trailing slash)
-  if (/^\/api\/jobs\/[^\/]+\/apply\/?$/.test(pathname)) {
+  // Allow public access to job apply endpoint for all methods (handle POST and preflight OPTIONS)
+  // Fixed the regex pattern to properly match the apply route
+  if (/^\/api\/jobs\/[^\/]+\/apply$/.test(pathname)) {
     // Add detailed debug logs for production diagnostics (only for apply route)
     console.log("Custom Middleware - Bypassing apply endpoint (ALL methods)", {
       pathname,

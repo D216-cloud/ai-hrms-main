@@ -37,7 +37,7 @@ export async function GET(request) {
     console.log('Job seeker found:', jobSeeker.id, jobSeeker.full_name);
 
     // Get all applications for this seeker from job_applications table
-    // This table is where applications are actually stored when submitted via /api/applications
+    // This table is where applications are actually stored when submitted via /api/job-applications
     const { data: applications, error: applicationsError } = await supabaseAdmin
       .from('job_applications')
       .select(`

@@ -42,7 +42,7 @@ export default function HRDashboardPage() {
       const [jobsAllRes, jobsActiveRes, appsRes] = await Promise.all([
         fetch(jobsAllUrl),
         fetch(jobsActiveUrl),
-        fetch("/api/applications"),
+        fetch("/api/job-applications")
       ]);
 
       const jobsAll = await jobsAllRes.json();

@@ -57,7 +57,7 @@ export default function ManageJobsPage() {
         let allApplications = [];
         try {
           for (const job of jobsData) {
-            const appsRes = await fetch(`/api/applications?job_id=${job.id}`);
+            const appsRes = await fetch(`/api/job-applications?job_id=${job.id}`);
             if (appsRes.ok) {
               const appsData = await appsRes.json();
               if (appsData.applications && Array.isArray(appsData.applications)) {

@@ -123,7 +123,7 @@ export default function AllCandidatesPage() {
       }
 
       // Fetch all candidates/applications
-      const candidatesResponse = await fetch("/api/applications");
+      const candidatesResponse = await fetch("/api/job-applications");
 
       if (!candidatesResponse.ok) {
         const errBody = await candidatesResponse.json().catch(() => null);
@@ -195,7 +195,7 @@ export default function AllCandidatesPage() {
         sendTest: schedSendTest || undefined,
       };
 
-      const res = await fetch(`/api/applications/${candidateId}/status`, {
+      const res = await fetch(`/api/job-applications/${candidateId}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -242,7 +242,7 @@ export default function AllCandidatesPage() {
 
   const updateCandidateStatus = async (candidateId, newStatus) => {
     try {
-      const response = await fetch(`/api/applications/${candidateId}/status`, {
+      const response = await fetch(`/api/job-applications/${candidateId}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
@@ -303,7 +303,7 @@ export default function AllCandidatesPage() {
     setBulkActionLoading(true);
     try {
       const promises = selectedCandidates.map((candidateId) =>
-        fetch(`/api/applications/${candidateId}/status`, {
+        fetch(`/api/job-applications/${candidateId}/status`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ status: action }),

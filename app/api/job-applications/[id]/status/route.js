@@ -13,7 +13,7 @@ import {
 } from "@/lib/emailTemplates";
 import crypto from "crypto";
 
-// PATCH /api/applications/[id]/status - Update application status
+// PATCH /api/job-applications/[id]/status - Update application status
 export async function PATCH(request, { params }) {
   try {
     const session = await getServerSession(authOptions);
@@ -215,7 +215,7 @@ export async function PATCH(request, { params }) {
     // Return the updated application row
     return NextResponse.json(application);
   } catch (error) {
-    console.error("Error in PATCH /api/applications/[id]/status:", error);
+    console.error("Error in PATCH /api/job-applications/[id]/status:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

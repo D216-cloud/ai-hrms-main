@@ -5,7 +5,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { matchResumeToJob, generateEmbedding } from "@/lib/openai";
 import { calculateMatchScore } from "@/utils/scoring";
 
-// POST /api/applications/[id]/reanalyze - Re-analyze candidate against job (HR only)
+// POST /api/job-applications/[id]/reanalyze - Re-analyze candidate against job (HR only)
 export async function POST(request, { params }) {
   try {
     const session = await getServerSession(authOptions);
@@ -120,7 +120,7 @@ export async function POST(request, { params }) {
       },
     });
   } catch (error) {
-    console.error("Error in POST /api/applications/[id]/reanalyze:", error);
+    console.error("Error in POST /api/job-applications/[id]/reanalyze:", error);
     return NextResponse.json(
       { error: error.message || "Failed to re-analyze application" },
       { status: 500 }

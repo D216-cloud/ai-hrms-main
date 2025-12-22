@@ -68,7 +68,7 @@ export default function TestPage() {
     try {
       // Get application by test token
       const appResponse = await fetch(
-        `/api/applications?testToken=${params.token}`
+        `/api/job-applications?testToken=${params.token}`
       );
       const appDataRaw = await appResponse.json();
 

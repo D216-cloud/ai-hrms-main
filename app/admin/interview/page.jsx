@@ -23,7 +23,7 @@ export default function InterviewPage() {
     const fetchSubmissions = async () => {
       try {
         // Gather application-based submissions
-        const resApps = await fetch('/api/applications');
+        const resApps = await fetch('/api/job-applications');
         const body = resApps.ok ? await resApps.json().catch(() => null) : null;
         const apps = (body && body.applications) || [];
         // build scheduled interviews list from applications that have scheduled_at

@@ -7,13 +7,14 @@ import { extractResumeText } from "@/lib/resumeParser";
 import { sendEmail } from "@/lib/email";
 import { applicationSubmittedTemplate } from "@/lib/emailTemplates";
 
-// CORS headers helper - ensures preflight and responses include CORS info in production
+// Move CORS headers to top for consistency
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS, PUT, DELETE",
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Accept, Origin",
 };
 
+// Add OPTIONS handler for CORS preflight requests
 export function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
 }
