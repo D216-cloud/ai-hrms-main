@@ -23,7 +23,7 @@ export default function VoiceCommand({ commands = null, autoStart = true }) {
   const [listening, setListening] = useState(false);
   const [status, setStatus] = useState('idle');
   const [logs, setLogs] = useState([]);
-  const [panelOpen, setPanelOpen] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(true);
   const recognitionRef = useRef(null);
 
   // Default commands mapping if not provided

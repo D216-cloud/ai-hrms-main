@@ -316,7 +316,7 @@ export default function TestPage() {
                 </Button>
                 <Button variant="outline" onClick={() => router.push('/')}>Return Home</Button>
               </div>
-            </CardHeader>
+            </CardContent>
           </Card>
         </div>
       </div>

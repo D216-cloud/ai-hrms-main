@@ -63,30 +63,6 @@ function HRLoginForm() {
       if (result?.error) {
         toast.error("Invalid email or password");
       } else {
-        // Small diagnostic: verify server-side session is established after sign-in
-        const checkSession = async () => {
-          for (let i = 0; i < 4; i++) {
-            try {
-              const res = await fetch('/api/debug-session');
-              if (res.ok) return await res.json();
-            } catch (e) {
-              // ignore and retry
-            }
-            await new Promise((r) => setTimeout(r, 500));
-          }
-          return null;
-        };
-
-        const sessionDebug = await checkSession();
-        if (!sessionDebug || sessionDebug.error) {
-          console.error('Session not found after sign-in:', sessionDebug);
-          toast.error('Signed in, but session was not established on the server. Check NEXTAUTH_URL, NEXTAUTH_SECRET and cookie settings in production.');
-          // Still attempt to navigate, but inform the user
-          router.push('/admin/dashboard');
-          router.refresh();
-          return;
-        }
-
         toast.success("Signed in successfully!");
         router.push("/admin/dashboard");
         router.refresh();
