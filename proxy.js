@@ -63,7 +63,8 @@ export default function middleware(req) {
 export const config = {
   matcher: [
     "/admin/:path*", // All admin routes require auth
-    "/api/jobs/:path+", // All job API routes (except the base /api/jobs and specific job endpoints) require auth
+    "/api/jobs/:path*", // All job API routes
+    "!/api/jobs/(.*)/apply", // BUT explicitly exclude the apply endpoint (negative lookahead)
     "/api/resume/:path+", // All resume API routes require auth
   ],
 };
