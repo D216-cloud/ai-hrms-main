@@ -1,33 +1,4 @@
-import { NextResponse } from 'next/server';
-import { generateMCQs } from '../../../../lib/openai';
 
-export async function GET(req) {
-  try {
-    const { searchParams } = new URL(req.url);
-    const jobId = searchParams.get('jobId');
-    // For now, no stored test retrieval implemented - return 404 to allow client to fall back to generation
-    return NextResponse.json({ ok: false, error: 'No stored test available' }, { status: 404 });
-  } catch (err) {
-    console.error('Error in GET /api/tests/generate:', err);
-    return NextResponse.json({ ok: false, error: 'Failed' }, { status: 500 });
-  }
-}
-
-export async function POST(req) {
-  try {
-    const body = await req.json();
-    const { jobId, testToken, skills = [], count = 20, jobTitle = 'Skill Test', experienceYears = 2 } = body || {};
-
-    const skillsArray = Array.isArray(skills) ? skills : (typeof skills === 'string' ? skills.split(',').map(s=>s.trim()).filter(Boolean) : []);
-
-    const questions = await generateMCQs({ jobTitle, skills: skillsArray, experienceYears, count });
-
-    return NextResponse.json({ ok: true, questions });
-  } catch (err) {
-    console.error('Error in POST /api/tests/generate:', err?.message || err);
-    return NextResponse.json({ ok: false, error: err?.message || 'Failed to generate questions' }, { status: 500 });
-  }
-}
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
