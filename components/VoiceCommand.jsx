@@ -23,14 +23,31 @@ export default function VoiceCommand({ commands = null, autoStart = true }) {
   const [listening, setListening] = useState(false);
   const [status, setStatus] = useState('idle');
   const [logs, setLogs] = useState([]);
-  const [panelOpen, setPanelOpen] = useState(true);
+  // start collapsed by default (collapsed icon only on page load); expands when user opens
+  const [panelOpen, setPanelOpen] = useState(false);
   const recognitionRef = useRef(null);
 
   // Default commands mapping if not provided
   const commandMap = commands || {
+    // Admin / HR commands
     'go to dashboard': '/admin/dashboard',
+    'open hr dashboard': '/admin/dashboard',
+    'open admin dashboard': '/admin/dashboard',
+    'open hr login': '/auth/hr-login',
+    'open hr profile': '/admin/profile',
     'open profile': '/admin/profile',
+
+    // Job seeker commands
+    'open job dashboard': '/seeker/dashboard',
+    'open jobseeker dashboard': '/seeker/dashboard',
+    'open job seeker dashboard': '/seeker/dashboard',
+    'open seeker dashboard': '/seeker/dashboard',
+    'open job profile': '/seeker/profile',
+    'open jobseeker profile': '/seeker/profile',
+    'open job login': '/auth/jobseeker-login',
     'show jobs': '/jobs',
+
+    // Generic
     'logout': '/auth/signout',
     'home': '/',
   };
@@ -186,8 +203,13 @@ export default function VoiceCommand({ commands = null, autoStart = true }) {
     return (
       <div className="fixed left-6 bottom-6 z-50">
         <button
-          onClick={() => setPanelOpen(true)}
-          title={`Voice listening — ${status}. Click to open panel`}
+          onClick={() => {
+            setPanelOpen(true);
+            // start listening immediately when opening from collapsed icon for convenience
+            startListening();
+          }}
+          title={`Voice listening — ${status}. Click to open panel and start listening`}
+          aria-label="Open voice commands"
           className="w-12 h-12 rounded-full bg-teal-600 text-white shadow-lg flex items-center justify-center ring-2 ring-teal-300/50"
         >
           <span className="text-lg">🎙️</span>
@@ -210,7 +232,7 @@ export default function VoiceCommand({ commands = null, autoStart = true }) {
           <button onClick={() => setPanelOpen(false)} className="px-2 py-1 ml-auto text-xs text-slate-500">Collapse</button>
         </div>
 
-        <div className="text-xs text-slate-600 dark:text-slate-400 mb-2">Try commands: <span className="font-medium">Go to dashboard</span>, <span className="font-medium">Open profile</span>, <span className="font-medium">Show jobs</span></div>
+        <div className="text-xs text-slate-600 dark:text-slate-400 mb-2">Try commands: <span className="font-medium">Open HR dashboard</span>, <span className="font-medium">Open HR login</span>, <span className="font-medium">Open job dashboard</span>, <span className="font-medium">Open job profile</span></div>
 
         <div className="h-36 overflow-auto bg-slate-50 dark:bg-slate-900 p-2 rounded text-xs">
           {logs.length === 0 ? (
