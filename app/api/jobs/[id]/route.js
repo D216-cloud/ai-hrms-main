@@ -11,10 +11,11 @@ export async function OPTIONS() {
     headers: {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Accept, Origin",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
     },
   });
 }
+
 // GET /api/jobs/[id] - Get a single job
 export async function GET(request, { params }) {
   try {

@@ -15,11 +15,11 @@ const CORS_HEADERS = {
 };
 
 // Add OPTIONS handler for CORS preflight requests
-export async function OPTIONS() {
+export function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
 }
 
-function createJsonResponse(body, status = 200) {
+function createJson(body, status = 200) {
   return NextResponse.json(body, { status, headers: CORS_HEADERS });
 }
 
@@ -38,11 +38,11 @@ export async function POST(request, { params }) {
 
     if (jobError || !job) {
       console.error("Job fetch error:", jobError);
-      return createJsonResponse({ error: "Job not found" }, 404);
+      return createJson({ error: "Job not found" }, 404);
     }
 
     if (job.status !== "active") {
-      return createJsonResponse(
+      return createJson(
         { error: "This job is no longer accepting applications" },
         400
       );
@@ -78,7 +78,7 @@ export async function POST(request, { params }) {
 
     // Validate required fields
     if (!resumeFile || !name || !email || !phone) {
-      return createJsonResponse(
+      return createJson(
         { error: "Missing required fields: resume, name, email, phone" },
         400
       );
@@ -87,7 +87,7 @@ export async function POST(request, { params }) {
     // Validate file size (max 10MB)
     const maxSize = 10 * 1024 * 1024; // 10MB in bytes
     if (resumeFile.size > maxSize) {
-      return createJsonResponse(
+      return createJson(
         { error: "Resume file too large. Maximum size is 10MB." },
         400
       );
@@ -107,7 +107,7 @@ export async function POST(request, { params }) {
       resumeFile.type.includes("msword");
       
     if (!isFileTypeValid) {
-      return createJsonResponse(
+      return createJson(
         { error: `Invalid file type: ${resumeFile.type}. Please upload PDF or DOCX files only.` },
         400
       );
@@ -116,7 +116,7 @@ export async function POST(request, { params }) {
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      return createJsonResponse(
+      return createJson(
         { error: "Please provide a valid email address." },
         400
       );
@@ -125,7 +125,7 @@ export async function POST(request, { params }) {
     // Validate phone format (basic validation)
     const phoneRegex = /^[\d\s\-\+\(\)]+$/;
     if (!phoneRegex.test(phone) || phone.length < 10) {
-      return createJsonResponse(
+      return createJson(
         { error: "Please provide a valid phone number." },
         400
       );
@@ -144,7 +144,7 @@ export async function POST(request, { params }) {
     }
 
     if (existingApp) {
-      return createJsonResponse(
+      return createJson(
         { error: "You have already applied to this job with this email" },
         400
       );
@@ -176,7 +176,7 @@ export async function POST(request, { params }) {
         errorMessage = uploadError.message;
       }
       
-      return createJsonResponse(
+      return createJson(
         {
           error: errorMessage,
         },
@@ -239,7 +239,7 @@ This is common with certain PDF formats and does not indicate a problem with you
         } catch (fallbackError) {
           console.error("Fallback text creation failed:", fallbackError);
           // If even fallback fails, return a more helpful error
-          return createJsonResponse(
+          return createJson(
             {
               error: "This PDF file format is not fully supported by our system. For best results, please convert your resume to DOCX format.",
               solution: "Convert your PDF to DOCX format using Microsoft Word, Google Docs, or an online converter.",
@@ -420,7 +420,7 @@ This is common with certain PDF formats and does not indicate a problem with you
         aiMatchDataKeys: aiMatchAnalysis ? Object.keys(aiMatchAnalysis) : null
       });
       
-      return createJsonResponse(
+      return createJson(
         { 
           error: "Failed to submit application",
           details: process.env.NODE_ENV === 'development' ? appError.message : undefined,
@@ -452,7 +452,7 @@ This is common with certain PDF formats and does not indicate a problem with you
       // Don't fail the application if email fails
     }
 
-    return createJsonResponse(
+    return createJson(
       {
         success: true,
         message:
@@ -476,7 +476,7 @@ This is common with certain PDF formats and does not indicate a problem with you
     );
   } catch (error) {
     console.error("Error in POST /api/jobs/[id]/apply:", error);
-    return createJsonResponse(
+    return createJson(
       { 
         error: "Internal server error",
         details: process.env.NODE_ENV === 'development' ? error.message : undefined
