@@ -22,7 +22,6 @@ export default function middleware(req) {
   }
 
   // Allow public access to job apply endpoint for all methods (handle POST and preflight OPTIONS)
-  // Fixed the regex pattern to properly match the apply route
   if (/^\/api\/jobs\/[^\/]+\/apply$/.test(pathname)) {
     // Add detailed debug logs for production diagnostics (only for apply route)
     console.log("Custom Middleware - Bypassing apply endpoint (ALL methods)", {
@@ -60,10 +59,12 @@ export default function middleware(req) {
 }
 
 // Protect these routes with authentication
+// Be specific about which job API routes to protect, excluding the public apply endpoint
 export const config = {
   matcher: [
-    "/admin/:path*", // All admin routes require auth
-    "/api/jobs/:path*", // All job API routes require auth
-    "/api/resume/:path+", // All resume API routes require auth
+    "/admin/:path*",           // All admin routes require auth
+    "/api/jobs",               // Job listing creation/update requires auth
+    "/api/jobs/:id",          // Individual job management requires auth
+    "/api/resume/:path+",      // All resume API routes require auth
   ],
 };
