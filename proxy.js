@@ -27,7 +27,13 @@ export default function middleware(req) {
 
     // If it's an OPTIONS preflight, respond immediately with 204 No Content
     if (method === "OPTIONS") {
-      return new NextResponse(null, { status: 204 });
+      // Include common CORS headers so preflight requests are explicitly allowed in production
+      const headers = {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS, PUT, DELETE",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      };
+      return new NextResponse(null, { status: 204, headers });
     }
 
     return NextResponse.next();
