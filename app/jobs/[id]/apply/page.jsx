@@ -260,7 +260,14 @@ export default function ApplyPage() {
         data = await response.json();
       } catch (parseError) {
         console.error("Error parsing response JSON:", parseError);
-        throw new Error("Invalid response from server. Please try again.");
+        let respText = null;
+        try {
+          respText = await response.text();
+          console.error("Non-JSON response body from /api/parse-resume:", respText);
+        } catch (e) {
+          console.error("Failed to read non-JSON response body:", e);
+        }
+        throw new Error(respText || "Invalid response from server. Please try again.");
       }
 
       console.log("Parse API data received:", data);
@@ -462,7 +469,15 @@ export default function ApplyPage() {
       try {
         data = await response.json();
       } catch (parseError) {
-        throw new Error("Invalid response from server. Please try again.");
+        console.error("Error parsing JSON from /api/jobs/[id]/apply response:", parseError);
+        let respText = null;
+        try {
+          respText = await response.text();
+          console.error("Non-JSON response body from /api/jobs/[id]/apply:", respText);
+        } catch (e) {
+          console.error("Failed to read non-JSON response body:", e);
+        }
+        throw new Error(respText || "Invalid response from server. Please try again.");
       }
 
       if (!response.ok) {
