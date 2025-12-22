@@ -63,6 +63,6 @@ export default function middleware(req) {
 export const config = {
   matcher: [
     "/admin/:path*", // All admin routes require auth
-    "/api/jobs/:path+", // All job API routes (except the base /a    "/api/jobs/:path*", // All job API routes require auth
-
+    "/api/jobs/:path*", // All job API routes require auth
+  ],
 };
