@@ -56,33 +56,22 @@ export default function middleware(req) {
     return NextResponse.next();
   }
 
-  // For all other routes, use withAuth with an async authorized callback that falls back to getToken
+  // For all other routes, use withAuth
   return withAuth({
     callbacks: {
-      authorized: async ({ token, req }) => {
+      authorized: ({ token, req }) => {
         console.log("Custom Middleware authorized callback - Token:", token);
 
-        // If token exists, allow
-        if (token) return true;
-
-        // Attempt to parse token using getToken as a fallback (helps when cookie name or parsing differs)
-        try {
-          const { getToken } = await import("next-auth/jwt");
-          const parsed = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-          console.log("Custom Middleware - getToken fallback result:", parsed);
-          if (parsed) return true;
-        } catch (err) {
-          console.log("Custom Middleware - getToken fallback failed:", err);
+        // If token is missing, also log request cookies to help debug missing Set-Cookie issues
+        if (!token) {
+          try {
+            console.log("Custom Middleware - Request Cookies:", req.headers.get("cookie"));
+          } catch (err) {
+            console.log("Custom Middleware - Failed to read request cookies", err);
+          }
         }
 
-        // If still no token, log cookies to aid diagnosis and deny
-        try {
-          console.log("Custom Middleware - Request Cookies:", req.headers.get("cookie"));
-        } catch (err) {
-          console.log("Custom Middleware - Failed to read request cookies", err);
-        }
-
-        return false;
+        return !!token;
       },
     },
   })(req);
