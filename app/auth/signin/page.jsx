@@ -36,6 +36,23 @@ function SignInForm() {
     }
   }, [status, session, router]);
 
+  // Polls /api/test-session until the server reports a valid session or timeout
+  async function waitForServerSession(retries = 6, delayMs = 500) {
+    for (let i = 0; i < retries; i++) {
+      try {
+        const res = await fetch("/api/test-session");
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.session) return data;
+        }
+      } catch (err) {
+        // ignore and retry
+      }
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+    return null;
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -50,9 +67,19 @@ function SignInForm() {
       if (result?.error) {
         toast.error("Invalid email or password");
       } else {
-        toast.success("Signed in successfully!");
-        router.push("/admin/dashboard");
-        router.refresh();
+        toast.success("Signed in successfully! Waiting for session...");
+
+        // Wait for the server to return a session (helps avoid immediate middleware redirect back to signin)
+        const sessionResult = await waitForServerSession(8, 500);
+
+        if (sessionResult && sessionResult.session) {
+          router.push("/admin/dashboard");
+          router.refresh();
+        } else {
+          // If we failed to observe a server session, show a helpful message and log server-side instructions
+          console.error("No server session observed after sign-in. Check NEXTAUTH_URL, NEXTAUTH_SECRET and server logs.");
+          toast.error("Signed in but session not yet established. Please try again or contact admin.");
+        }
       }
     } catch (err) {
       toast.error("An error occurred. Please try again.");
