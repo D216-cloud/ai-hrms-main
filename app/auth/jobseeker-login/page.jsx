@@ -47,20 +47,6 @@ function JobSeekerLoginForm() {
     };
   }, [mobileMenuOpen]);
 
-  async function waitForServerSession(retries = 6, delayMs = 500) {
-    for (let i = 0; i < retries; i++) {
-      try {
-        const res = await fetch("/api/test-session");
-        if (res.ok) {
-          const data = await res.json();
-          if (data && data.session) return data;
-        }
-      } catch (err) {}
-      await new Promise((r) => setTimeout(r, delayMs));
-    }
-    return null;
-  }
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -75,7 +61,7 @@ function JobSeekerLoginForm() {
         });
 
         if (response.ok) {
-          toast.success("Account created! Signing you in... Waiting for session...");
+          toast.success("Account created! Signing you in...");
           // Sign in after successful signup
           const result = await signIn("credentials", {
             email: formData.email,
@@ -85,14 +71,8 @@ function JobSeekerLoginForm() {
           });
 
           if (!result?.error) {
-            const sessionResult = await waitForServerSession(8, 500);
-            if (sessionResult && sessionResult.session) {
-              router.push("/seeker/dashboard");
-              router.refresh();
-            } else {
-              console.error("No server session observed after sign-in. Check NEXTAUTH_URL, NEXTAUTH_SECRET and server logs.");
-              toast.error("Signed in but session not yet established. Please try again or contact admin.");
-            }
+            router.push("/seeker/dashboard");
+            router.refresh();
           }
         } else {
           const error = await response.json();
@@ -110,15 +90,9 @@ function JobSeekerLoginForm() {
         if (result?.error) {
           toast.error("Invalid email or password");
         } else {
-          toast.success("Signed in successfully! Waiting for session...");
-          const sessionResult = await waitForServerSession(8, 500);
-          if (sessionResult && sessionResult.session) {
-            router.push("/seeker/dashboard");
-            router.refresh();
-          } else {
-            console.error("No server session observed after sign-in. Check NEXTAUTH_URL, NEXTAUTH_SECRET and server logs.");
-            toast.error("Signed in but session not yet established. Please try again or contact admin.");
-          }
+          toast.success("Signed in successfully!");
+          router.push("/seeker/dashboard");
+          router.refresh();
         }
       }
     } catch (err) {
