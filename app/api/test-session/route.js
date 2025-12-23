@@ -3,15 +3,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
 // Test route to debug session issues
-export async function GET(req) {
+export async function GET() {
   try {
-    // Log incoming cookies for debugging in production
-    try {
-      console.log("Test session route - Request cookies:", req.headers.get("cookie"));
-    } catch (err) {
-      console.log("Test session route - Could not read cookies", err);
-    }
-
     const session = await getServerSession(authOptions);
     
     console.log("Test session route - Session:", session);
