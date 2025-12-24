@@ -2,7 +2,7 @@
 
 import { signIn, useSession } from "next-auth/react";
 import { useState, useEffect, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -19,13 +19,14 @@ import { toast } from "sonner";
 import { AlertCircle, Menu, X } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
-function HRLoginForm() {
+function HRSignupForm() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { data: session, status } = useSession();
   const [formData, setFormData] = useState({
+    name: "",
     email: "",
     password: "",
+    confirmPassword: "",
   });
   const [loading, setLoading] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -51,42 +52,60 @@ function HRLoginForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validate password match
+    if (formData.password !== formData.confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+
+    // Validate password strength
+    if (formData.password.length < 6) {
+      toast.error("Password must be at least 6 characters long");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const result = await signIn("credentials", {
+      // First, create the user via the API
+      const response = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          name: formData.name,
+          role: 'hr', // Explicitly set role as HR
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        toast.error(result.error || 'Failed to create account');
+        return;
+      }
+
+      // If user was created successfully, now try to sign in
+      const signInResult = await signIn('credentials', {
         email: formData.email,
         password: formData.password,
         redirect: false,
       });
 
-      if (result?.error) {
-        toast.error("Invalid email or password");
+      if (signInResult?.error) {
+        toast.error('Account created, but failed to sign in. Please try logging in manually.');
+        router.push('/auth/hr-login');
       } else {
-        toast.success("Signed in successfully!");
-        router.push("/admin/dashboard");
+        toast.success('Account created and signed in successfully! Redirecting to dashboard...');
+        router.push('/admin/dashboard');
         router.refresh();
       }
     } catch (err) {
-      toast.error("An error occurred. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGoogleSignIn = async () => {
-    setLoading(true);
-    try {
-      const result = await signIn("google", {
-        callbackUrl: "/admin/dashboard",
-        redirect: true,
-      });
-      
-      if (result?.error) {
-        toast.error("Failed to sign in with Google");
-      }
-    } catch (err) {
-      toast.error("An error occurred. Please try again.");
+      toast.error('An error occurred. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -245,56 +264,40 @@ function HRLoginForm() {
             <div className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-full bg-teal-50 dark:bg-teal-900/30 border border-teal-200 dark:border-teal-800 mb-6 sm:mb-8">
               <span className="w-2 h-2 bg-teal-500 rounded-full animate-pulse"></span>
               <span className="text-xs sm:text-sm font-semibold text-teal-700 dark:text-teal-300">
-                HR Portal Access
+                Create HR Account
               </span>
             </div>
             <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-4 leading-tight">
-              Welcome Back, <span className="bg-clip-text text-transparent bg-linear-to-r from-teal-500 to-teal-700 dark:from-teal-400 dark:to-teal-600">HR Team</span>
+              Join the <span className="bg-clip-text text-transparent bg-linear-to-r from-teal-500 to-teal-700 dark:from-teal-400 dark:to-teal-600">HR Team</span>
             </h1>
             <p className="text-base sm:text-lg text-gray-600 dark:text-gray-400 leading-relaxed">
-              Sign in to manage candidates and streamline recruitment
+              Create your account to manage candidates and streamline recruitment
             </p>
           </div>
 
-          {/* Sign In Card */}
+          {/* Sign Up Card */}
           <Card className="border-2 border-gray-100 dark:border-gray-800 shadow-xl bg-white dark:bg-gray-900 rounded-2xl animate-in fade-in slide-in-from-bottom duration-500 delay-200">
             <CardContent className="pt-8 pb-6 px-6 sm:px-8">
-              {(searchParams?.get("error") === "unauthorized" || searchParams?.get("error") === "invalid" || searchParams?.get("error") === "onboarding") && (
-                <Alert variant="destructive" className="mb-6">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>
-                    {searchParams?.get("error") === "unauthorized" 
-                      ? "You don't have permission to access the HR portal. Only authorized HR personnel can log in." 
-                      : searchParams?.get("error") === "onboarding"
-                        ? "Your Google account is not yet set up in our HR system. Please contact your administrator to add your account."
-                        : "Invalid credentials. Please contact your administrator if you need access."}
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              {/* Info Box */}
-              <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border-2 border-blue-200 dark:border-blue-800">
-                <p className="text-sm text-blue-800 dark:text-blue-200">
-                  <span className="font-bold">New HR Member?</span> Create your account to access the dashboard.
-                </p>
-                <Link 
-                  href="/auth/hr-signup" 
-                  className="mt-2 inline-flex items-center text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
-                >
-                  Create HR Account →
-                </Link>
-              </div>
-
-              {searchParams?.get("message") === "request-submitted" && (
-                <Alert className="mb-6 bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
-                  <AlertCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
-                  <AlertDescription className="text-green-800 dark:text-green-200">
-                    Your access request has been submitted. An administrator will review it shortly.
-                  </AlertDescription>
-                </Alert>
-              )}
-
               <form onSubmit={handleSubmit} className="space-y-5">
+                <div className="space-y-2">
+                  <Label htmlFor="name" className="text-sm font-semibold text-gray-900 dark:text-white">
+                    Full Name
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="name"
+                      type="text"
+                      placeholder="John Doe"
+                      required
+                      value={formData.name}
+                      onChange={(e) =>
+                        setFormData({ ...formData, name: e.target.value })
+                      }
+                      className="h-12 pl-4 pr-4 border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-teal-500 dark:focus:ring-teal-400 transition-all"
+                    />
+                  </div>
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="email" className="text-sm font-semibold text-gray-900 dark:text-white">
                     Work Email
@@ -333,6 +336,25 @@ function HRLoginForm() {
                   </div>
                 </div>
 
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword" className="text-sm font-semibold text-gray-900 dark:text-white">
+                    Confirm Password
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="confirmPassword"
+                      type="password"
+                      placeholder="••••••••"
+                      required
+                      value={formData.confirmPassword}
+                      onChange={(e) =>
+                        setFormData({ ...formData, confirmPassword: e.target.value })
+                      }
+                      className="h-12 pl-4 pr-4 border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-teal-500 dark:focus:ring-teal-400 transition-all"
+                    />
+                  </div>
+                </div>
+
                 <Button 
                   type="submit" 
                   className="w-full h-12 bg-teal-500 hover:bg-teal-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105" 
@@ -344,11 +366,11 @@ function HRLoginForm() {
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
-                      Signing in...
+                      Creating Account...
                     </span>
                   ) : (
                     <span className="flex items-center justify-center gap-2">
-                      Sign in to Dashboard
+                      Create HR Account
                       <span>→</span>
                     </span>
                   )}
@@ -362,59 +384,38 @@ function HRLoginForm() {
                 </div>
                 <div className="relative flex justify-center text-sm">
                   <span className="px-2 bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400">
-                    Or continue with
+                    Already have an account?
                   </span>
                 </div>
               </div>
               
-              {/* Google Sign In Button */}
-              <Button 
-                type="button"
-                onClick={handleGoogleSignIn}
-                disabled={loading}
-                className="w-full h-12 bg-white border-2 border-gray-200 text-gray-700 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 font-medium shadow-sm transition-all duration-200 flex items-center justify-center"
+              <Link 
+                href="/auth/hr-login"
+                className="w-full block text-center px-4 py-3 bg-white border-2 border-gray-200 text-gray-700 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 font-medium rounded-xl shadow-sm transition-all duration-200"
               >
-                {loading ? (
-                  <span className="flex items-center justify-center">
-                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Signing in...
-                  </span>
-                ) : (
-                  <>
-                    <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
-                      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                    </svg>
-                    Sign in with Google
-                  </>
-                )}
-              </Button>
-              
-              {/* Demo Credentials */}
-              <div className="mt-6 p-5 bg-teal-50 dark:bg-teal-900/20 rounded-xl border-2 border-teal-200 dark:border-teal-800">
-                <p className="text-sm text-teal-900 dark:text-teal-300 font-semibold mb-3 flex items-center">
-                  <span className="text-lg mr-2">🧪</span>
-                  Demo Credentials
+                Sign In to Dashboard
+              </Link>
+
+              {/* Password Requirements */}
+              <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border-2 border-blue-200 dark:border-blue-800">
+                <p className="text-sm text-blue-900 dark:text-blue-300 font-semibold mb-2 flex items-center">
+                  <span className="text-lg mr-2">📋</span>
+                  Password Requirements
                 </p>
-                <div className="text-sm text-teal-700 dark:text-teal-400 space-y-2">
-                  <div className="flex items-center justify-between bg-white dark:bg-gray-800 px-3 py-2 rounded-lg">
-                    <span className="font-medium">Email:</span>
-                    <code className="text-xs bg-teal-100 dark:bg-teal-900/30 px-2 py-1 rounded font-mono">
-                      admin@company.com
-                    </code>
-                  </div>
-                  <div className="flex items-center justify-between bg-white dark:bg-gray-800 px-3 py-2 rounded-lg">
-                    <span className="font-medium">Password:</span>
-                    <code className="text-xs bg-teal-100 dark:bg-teal-900/30 px-2 py-1 rounded font-mono">
-                      Admin@123
-                    </code>
-                  </div>
-                </div>
+                <ul className="text-sm text-blue-700 dark:text-blue-400 space-y-1">
+                  <li className="flex items-center">
+                    <span className="text-green-500 mr-2">✓</span>
+                    At least 6 characters long
+                  </li>
+                  <li className="flex items-center">
+                    <span className="text-green-500 mr-2">✓</span>
+                    Include uppercase and lowercase letters
+                  </li>
+                  <li className="flex items-center">
+                    <span className="text-green-500 mr-2">✓</span>
+                    Include numbers and special characters
+                  </li>
+                </ul>
               </div>
 
               <p className="mt-6 text-xs text-center text-gray-500 dark:text-gray-400 flex items-center justify-center space-x-2">
@@ -444,7 +445,7 @@ function HRLoginForm() {
   );
 }
 
-export default function HRLoginPage() {
+export default function HRSignupPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen flex items-center justify-center bg-linear-to-b from-white via-gray-50 to-white dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
@@ -454,7 +455,7 @@ export default function HRLoginPage() {
         </div>
       </div>
     }>
-      <HRLoginForm />
+      <HRSignupForm />
     </Suspense>
   );
 }

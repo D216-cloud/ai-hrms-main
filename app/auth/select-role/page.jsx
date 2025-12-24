@@ -140,6 +140,22 @@ export default function SelectRolePage() {
               <p className="text-xs text-gray-500 dark:text-gray-400 px-4 mb-2 font-semibold uppercase tracking-wider">
                 Select Your Role
               </p>
+              <Link
+                href="/auth/hr-signup"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center space-x-3 px-4 py-3 rounded-xl font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all"
+              >
+                <span className="text-xl">📝</span>
+                <span>Create HR Account</span>
+              </Link>
+              <Link
+                href="/auth/hr-login"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center space-x-3 px-4 py-3 rounded-xl font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all"
+              >
+                <span className="text-xl">🔐</span>
+                <span>HR Login</span>
+              </Link>
             </div>
           </div>
         </div>
@@ -200,7 +216,7 @@ export default function SelectRolePage() {
           </p>
 
           {/* Cards */}
-          <div className="grid md:grid-cols-2 gap-6 md:gap-8 max-w-4xl mx-auto">
+          <div className="grid md:grid-cols-3 gap-6 md:gap-8 max-w-6xl mx-auto">
             {/* HR Card */}
             <Link
               href="/auth/hr-login"
@@ -267,6 +283,79 @@ export default function SelectRolePage() {
                   Continue as HR
                   <svg className={`w-5 h-5 transition-transform duration-300 ${
                     hoveredCard === 'hr' ? 'translate-x-1' : ''
+                  }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+              </div>
+            </Link>
+
+            {/* HR Signup Card */}
+            <Link
+              href="/auth/hr-signup"
+              onMouseEnter={() => setHoveredCard('hr-signup')}
+              onMouseLeave={() => setHoveredCard(null)}
+              className="group relative animate-in fade-in slide-in-from-left duration-500 delay-300"
+            >
+              <div className={`relative bg-white dark:bg-gray-800 p-8 md:p-10 rounded-3xl border-2 transition-all duration-300 ${
+                hoveredCard === 'hr-signup' 
+                  ? 'border-teal-500 shadow-2xl transform scale-105' 
+                  : 'border-gray-200 dark:border-gray-700 shadow-xl hover:shadow-2xl'
+              }`}>
+                {/* Icon */}
+                <div className={`w-20 h-20 mx-auto mb-6 rounded-2xl flex items-center justify-center transition-all duration-300 ${
+                  hoveredCard === 'hr-signup'
+                    ? 'bg-linear-to-br from-teal-400 to-teal-600 shadow-lg scale-110'
+                    : 'bg-teal-100 dark:bg-teal-900/30'
+                }`}>
+                  <svg className={`w-10 h-10 transition-colors duration-300 ${
+                    hoveredCard === 'hr-signup' ? 'text-white' : 'text-teal-600 dark:text-teal-400'
+                  }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                  </svg>
+                </div>
+
+                {/* Title */}
+                <h2 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-4">
+                  HR Sign Up
+                </h2>
+
+                {/* Description */}
+                <p className="text-sm md:text-base text-gray-600 dark:text-gray-400 leading-relaxed mb-6">
+                  Create your HR account to access recruitment tools and manage candidates
+                </p>
+
+                {/* Features */}
+                <ul className="space-y-3 mb-6 text-left">
+                  <li className="flex items-center text-sm text-gray-700 dark:text-gray-300">
+                    <svg className="w-5 h-5 text-teal-500 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Secure Account Creation
+                  </li>
+                  <li className="flex items-center text-sm text-gray-700 dark:text-gray-300">
+                    <svg className="w-5 h-5 text-teal-500 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Full Dashboard Access
+                  </li>
+                  <li className="flex items-center text-sm text-gray-700 dark:text-gray-300">
+                    <svg className="w-5 h-5 text-teal-500 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    AI-Powered Tools
+                  </li>
+                </ul>
+
+                {/* Button */}
+                <div className={`inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
+                  hoveredCard === 'hr-signup'
+                    ? 'bg-teal-500 text-white shadow-lg'
+                    : 'bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-300'
+                }`}>
+                  Create HR Account
+                  <svg className={`w-5 h-5 transition-transform duration-300 ${
+                    hoveredCard === 'hr-signup' ? 'translate-x-1' : ''
                   }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
