@@ -4,6 +4,7 @@ const nextConfig = {
   reactCompiler: true,
   // Ensure cookies are properly handled
   serverExternalPackages: ["openai", "pdf-parse"],
+
 };
 
 export default nextConfig;

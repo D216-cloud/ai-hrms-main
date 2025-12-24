@@ -1,13 +1,26 @@
+  'use client';
+
+import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
+import Link from 'next/link';
+import { Loader2 } from 'lucide-react';
+
+export default function InterviewPage() {
   const { data: session, status } = useSession();
-  const router = useRouter();
+  
   const [loading, setLoading] = useState(true);
   const [recentSubmissions, setRecentSubmissions] = useState([]);
   const [scheduledInterviews, setScheduledInterviews] = useState([]);
 
   useEffect(() => {
-    if (status === "unauthenticated") router.push("/auth/hr-login");
+    if (status === "unauthenticated") {
+      if (typeof window !== 'undefined') {
+        window.location.href = "/auth/hr-login";
+      }
+      return;
+    }
     if (status === "authenticated") setLoading(false);
-  }, [status, router]);
+  }, [status]);
 
   useEffect(() => {
     // Fetch recent test submissions for jobs owned by this HR
@@ -85,7 +98,7 @@
   }
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Interviews</h1>
@@ -144,7 +157,9 @@
                     {app.resume_url && (
                       <a href={app.resume_url} target="_blank" rel="noreferrer" className="text-sm text-blue-600">View Resume</a>
                     )}
-                    <button className="ml-auto px-3 py-1 bg-teal-600 text-white rounded text-sm" onClick={() => router.push(`/admin/applications/${app.id}`)}>Open</button>
+                    <Link href={`/admin/applications/${app.id}`}>
+                    <button className="ml-auto px-3 py-1 bg-teal-600 text-white rounded text-sm">Open</button>
+                  </Link>
                   </div>
                 </div>
               ))}
