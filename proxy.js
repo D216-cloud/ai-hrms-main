@@ -32,10 +32,10 @@ export default withAuth(
   },
   {
     callbacks: {
-      authorized: ({ token }) => {
+      authorized: ({ token, type, req: request }) => {
         console.log("Custom Middleware authorized callback - Token:", token);
         // Allow access to admin routes only for users with 'hr' or 'admin' role
-        if (req.nextUrl.pathname.startsWith('/admin')) {
+        if (request?.nextUrl?.pathname?.startsWith('/admin')) {
           return !!token && (token.role === 'hr' || token.role === 'admin');
         }
         // For other protected routes, just check if authenticated
