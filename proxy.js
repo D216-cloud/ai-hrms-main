@@ -21,30 +21,9 @@ export default function middleware(req) {
     return NextResponse.next();
   }
 
-  // Allow public access to job apply endpoint for all methods (handle POST and preflight OPTIONS)
-  // Fixed the regex pattern to properly match the apply route
-  if (/^\/api\/jobs\/[^\/]+\/apply$/.test(pathname)) {
-    // Add detailed debug logs for production diagnostics (only for apply route)
-    console.log("Custom Middleware - Bypassing apply endpoint (ALL methods)", {
-      pathname,
-      method,
-      origin: req.headers.get("origin"),
-      contentType: req.headers.get("content-type"),
-      userAgent: req.headers.get("user-agent") ? req.headers.get("user-agent").slice(0, 80) : undefined,
-    });
-
-    // If it's an OPTIONS preflight, respond immediately with 204 No Content
-    if (method === "OPTIONS") {
-      // Include common CORS headers so preflight requests are explicitly allowed in production
-      const headers = {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, POST, OPTIONS, PUT, DELETE",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Accept, Origin",
-      };
-      console.log("Custom Middleware - Responding to preflight (OPTIONS)", { pathname, origin: req.headers.get("origin") });
-      return new NextResponse(null, { status: 204, headers });
-    }
-
+  // Allow public POST to apply for a job (candidates can submit applications without auth)
+  if (method === "POST" && /^\/api\/jobs\/[^\/]+\/apply$/.test(pathname)) {
+    console.log("Custom Middleware - Allowing public access to job apply endpoint");
     return NextResponse.next();
   }
 
@@ -63,6 +42,7 @@ export default function middleware(req) {
 export const config = {
   matcher: [
     "/admin/:path*", // All admin routes require auth
-    "/api/jobs/:path*", // All job API routes require auth
+    "/api/jobs/:path+", // All job API routes (except the base /api/jobs and specific job endpoints) require auth
+    "/api/resume/:path+", // All resume API routes require auth
   ],
 };

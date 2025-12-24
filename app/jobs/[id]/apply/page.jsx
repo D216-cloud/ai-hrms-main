@@ -255,17 +255,12 @@ export default function ApplyPage() {
         throw new Error(errorMessage);
       }
 
-      let data = null;
-      const contentType = response.headers.get("content-type") || "";
-      if (contentType.includes("application/json")) {
-        try {
-          data = await response.json();
-        } catch (parseError) {
-          console.error("Error parsing response JSON:", parseError);
-          data = null;
-        }
-      } else {
-        data = { error: response.statusText || "Invalid response from server" };
+      let data;
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        console.error("Error parsing response JSON:", parseError);
+        throw new Error("Invalid response from server. Please try again.");
       }
 
       console.log("Parse API data received:", data);
@@ -463,55 +458,41 @@ export default function ApplyPage() {
         body: submitData,
       });
 
-      // Robust handling for non-JSON and empty responses (e.g., 405 returned without a body)
-      let data = null;
-      const contentType = response.headers.get("content-type") || "";
-      if (contentType.includes("application/json")) {
-        try {
-          data = await response.json();
-        } catch (parseError) {
-          // If parsing fails, keep data as null and continue to error handling below
-          console.error("Failed to parse JSON from response:", parseError);
-          data = null;
-        }
-      } else {
-        // No JSON content-type — capture status text for better error messages
-        data = { error: response.statusText || "Invalid response from server" };
+      let data;
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        throw new Error("Invalid response from server. Please try again.");
       }
 
       if (!response.ok) {
-        // Specific handling for Method Not Allowed (405) which may occur due to middleware blocking in production
-        if (response.status === 405) {
-          throw new Error("Server rejected the request (Method Not Allowed). Please try again later.");
-        }
-
         // Handle specific error cases
         if (response.status === 400) {
-          if (data && data.error && data.error.includes("password")) {
+          if (data.error && data.error.includes("password")) {
             throw new Error("Password-protected files are not supported. Please remove the password and try again.");
-          } else if (data && data.error && (data.error.includes("corrupted") || data.error.includes("Corrupted") ||
+          } else if (data.error && (data.error.includes("corrupted") || data.error.includes("Corrupted") ||
             data.error.includes("difficulty parsing") || data.error.includes("common with certain PDF formats") ||
             data.error.includes("convert to DOCX format") || data.error.includes("better compatibility"))) {
             // This is actually a success case - the file was processed but had parsing issues
             toast.success("Application submitted successfully! The system had difficulty parsing your resume file, but your application was submitted with the information you provided.");
             // Redirect to success page
-            const successUrl = `/jobs/${params.id}/apply/success?token=${data?.application?.token || 'unknown'
+            const successUrl = `/jobs/${params.id}/apply/success?token=${data.application?.token || 'unknown'
               }&jobTitle=${encodeURIComponent(
-                data?.application?.jobTitle || job.title
-              )}&email=${encodeURIComponent(data?.application?.email || formData.email)}&matchScore=${data?.application?.matchScore || 0
+                data.application?.jobTitle || job.title
+              )}&email=${encodeURIComponent(data.application?.email || formData.email)}&matchScore=${data.application?.matchScore || 0
               }`;
             router.push(successUrl);
             return; // Don't show error, continue with success
-          } else if (data && data.error && data.error.includes("Invalid")) {
+          } else if (data.error && data.error.includes("Invalid")) {
             throw new Error("Invalid file format. Please ensure you're uploading a valid PDF or DOCX file.");
           }
-          throw new Error((data && data.error) || "Invalid application data. Please check your information.");
+          throw new Error(data.error || "Invalid application data. Please check your information.");
         } else if (response.status === 404) {
           throw new Error("Job not found. It may have been removed.");
         } else if (response.status === 500) {
-          throw new Error((data && data.userMessage) || (data && data.error) || "Server error occurred. Please try again or contact support.");
+          throw new Error(data.userMessage || data.error || "Server error occurred. Please try again or contact support.");
         } else {
-          throw new Error((data && data.error) || "Failed to submit application");
+          throw new Error(data.error || "Failed to submit application");
         }
       }
 

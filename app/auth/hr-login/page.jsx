@@ -57,7 +57,6 @@ function HRLoginForm() {
       const result = await signIn("credentials", {
         email: formData.email,
         password: formData.password,
-        role: "hr",
         redirect: false,
       });
 
