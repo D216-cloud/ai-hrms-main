@@ -30,12 +30,7 @@ export default function VoiceCommand({ commands = null, autoStart = true }) {
   // Default commands mapping if not provided
   const commandMap = commands || {
     // Admin / HR commands
-    'go to dashboard': '/admin/dashboard',
-    'open hr dashboard': '/admin/dashboard',
-    'open admin dashboard': '/admin/dashboard',
-    'open hr login': '/auth/hr-login',
-    'open hr profile': '/admin/profile',
-    'open profile': '/admin/profile',
+
 
     // Job seeker commands
     'open job dashboard': '/seeker/dashboard',
@@ -232,7 +227,7 @@ export default function VoiceCommand({ commands = null, autoStart = true }) {
           <button onClick={() => setPanelOpen(false)} className="px-2 py-1 ml-auto text-xs text-slate-500">Collapse</button>
         </div>
 
-        <div className="text-xs text-slate-600 dark:text-slate-400 mb-2">Try commands: <span className="font-medium">Open HR dashboard</span>, <span className="font-medium">Open HR login</span>, <span className="font-medium">Open job dashboard</span>, <span className="font-medium">Open job profile</span></div>
+        <div className="text-xs text-slate-600 dark:text-slate-400 mb-2">Try commands: <span className="font-medium">Open job dashboard</span>, <span className="font-medium">Open job profile</span>, <span className="font-medium">Show jobs</span></div>
 
         <div className="h-36 overflow-auto bg-slate-50 dark:bg-slate-900 p-2 rounded text-xs">
           {logs.length === 0 ? (

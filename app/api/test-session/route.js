@@ -1,29 +1,13 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
-// Test route to debug session issues
-export async function GET() {
+export async function GET(req) {
   try {
     const session = await getServerSession(authOptions);
-    
-    console.log("Test session route - Session:", session);
-    
-    if (!session) {
-      return NextResponse.json({ 
-        error: "No session found", 
-        session: null 
-      }, { status: 401 });
-    }
-    
-    return NextResponse.json({ 
-      message: "Session found", 
-      session: session,
-      role: session.user?.role,
-      userId: session.user?.id
-    });
+    return NextResponse.json({ session }, { status: 200 });
   } catch (error) {
-    console.error("Error in test session route:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('Error in test-session endpoint:', error);
+    return NextResponse.json({ error: 'Failed to read session' }, { status: 500 });
   }
 }

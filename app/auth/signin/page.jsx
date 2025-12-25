@@ -158,7 +158,7 @@ function SignInForm() {
               Welcome Back
             </h1>
             <p className="text-base sm:text-lg text-gray-600 dark:text-gray-400 leading-relaxed">
-              Sign in to access your <span className="bg-clip-text text-transparent bg-linear-to-r from-teal-500 to-teal-700 dark:from-teal-400 dark:to-teal-600 font-semibold">HR dashboard</span>
+              Sign in to access your dashboard
             </p>
           </div>
 

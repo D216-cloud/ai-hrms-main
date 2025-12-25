@@ -1,17 +1,19 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+// import { getServerSession } from 'next-auth';
+// import { authOptions } from '@/lib/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 
 // GET - fetch hr profile for signed-in HR user
 export async function GET(req) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || (session.user.role !== 'hr' && session.user.role !== 'admin')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    // Removed auth check - now accessible to anyone
+    // const session = await getServerSession(authOptions);
+    // if (!session || (session.user.role !== 'hr' && session.user.role !== 'admin')) {
+    //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // }
 
-    const hrUserId = session.user.id;
+    // For now, using a placeholder ID since auth is removed
+    const hrUserId = 'placeholder-user-id';
 
     // Try to fetch the profile; if missing, return an empty shape
     // Try to read from hr_profiles; if the table doesn't exist (PGRST205),
@@ -67,12 +69,14 @@ export async function GET(req) {
 // PATCH - create or update the HR profile for signed-in HR user
 export async function PATCH(req) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || (session.user.role !== 'hr' && session.user.role !== 'admin')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    // Removed auth check - now accessible to anyone
+    // const session = await getServerSession(authOptions);
+    // if (!session || (session.user.role !== 'hr' && session.user.role !== 'admin')) {
+    //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // }
 
-    const hrUserId = session.user.id;
+    // For now, using a placeholder ID since auth is removed
+    const hrUserId = 'placeholder-user-id';
     const body = await req.json();
 
     const updateData = {};

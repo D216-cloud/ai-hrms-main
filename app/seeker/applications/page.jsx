@@ -42,13 +42,6 @@ export default function ApplicationsPage() {
     if (status === "unauthenticated") {
       router.push("/auth/jobseeker-login");
     } else if (status === "authenticated") {
-      // Check if user is HR or admin - redirect them to admin dashboard
-      if (session?.user?.role === "hr" || session?.user?.role === "admin") {
-        console.log("HR/Admin user detected, redirecting to admin dashboard");
-        router.push("/admin/dashboard");
-        return;
-      }
-
       // Only fetch applications for job seekers
       if (session?.user?.role === "job_seeker") {
         fetchApplications();
