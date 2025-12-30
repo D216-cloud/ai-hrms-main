@@ -34,16 +34,6 @@ export default withAuth(
     callbacks: {
       authorized: ({ token, type, req: request }) => {
         console.log("Custom Middleware authorized callback - Token:", token);
-        if (!token) {
-          // Helpful debug info to diagnose cookie/token issues in deployed envs
-          try {
-            console.log("Custom Middleware - Request Cookies:", request.headers.get('cookie'));
-            console.log("Custom Middleware - x-forwarded-proto:", request.headers.get('x-forwarded-proto'));
-            console.log("Custom Middleware - Host:", request.headers.get('host'));
-          } catch (e) {
-            console.log('Custom Middleware - Error reading headers for debug:', e);
-          }
-        }
         // Allow access to admin routes only for users with 'hr' or 'admin' role
         if (request?.nextUrl?.pathname?.startsWith('/admin')) {
           return !!token && (token.role === 'hr' || token.role === 'admin');

@@ -134,7 +134,7 @@ export function JobSeekerLoginForm() {
             <CardContent className="pt-8 pb-6 px-6 sm:px-8">
               <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border-2 border-blue-200 dark:border-blue-800">
                 <p className="text-sm text-blue-800 dark:text-blue-200">
-                  Use your Google account to quickly sign in and create your job seeker profile if it doesn't already exist.
+                  Use your Google account to quickly sign in and create your job seeker profile if it doesn&apos;t already exist.
                 </p>
                 <Link href="/jobs" className="mt-2 inline-flex items-center text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300">Browse jobs without signing in →</Link>
               </div>

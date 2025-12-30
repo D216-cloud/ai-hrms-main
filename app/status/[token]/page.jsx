@@ -196,58 +196,31 @@ export default function StatusPage() {
       <NavBar />
       <div className="min-h-screen bg-gray-50 py-12">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <Button asChild variant="ghost" className="mb-4">
-              <Link href="/jobs">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Jobs
-              </Link>
-            </Button>
-            <h1 className="text-3xl font-bold text-gray-900">
-              Application Status
-            </h1>
-            <p className="text-gray-600 mt-2">Track your application progress</p>
-          </div>
+        {/* Hero / Status */}
+        <div className="mb-6 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-lg p-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="flex items-start gap-4">
+              <div className={`w-16 h-16 rounded-lg flex items-center justify-center ${statusInfo.color} shrink-0`}>
+                <StatusIcon className="h-8 w-8" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{job?.title || 'Position'}</h2>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{job?.company || application?.company || ''} • {job?.location || 'Remote'}</p>
+                <p className="mt-3 text-gray-700 dark:text-gray-300">{statusInfo.description}</p>
+              </div>
+            </div>
 
-          <div className="flex items-center gap-3">
-            <Button
-              onClick={startTest}
-              className="bg-cyan-600 hover:bg-cyan-700 text-white"
-              disabled={!application?.test_token && !token}
-            >
-              Start Test
-            </Button>
-            {!application?.test_token && (
-              <span className="text-sm text-gray-500 hidden sm:inline">Test not available — <a href="mailto:hr@company.com" className="text-blue-600 hover:underline">Contact HR</a></span>
-            )}
+            <div className="flex items-center gap-3">
+              <Badge className={`${statusInfo.color} px-3 py-1 rounded-full`}>{statusInfo.label}</Badge>
+              <Button onClick={startTest} className="bg-cyan-600 hover:bg-cyan-700 text-white" disabled={!application?.test_token && !token}>Start Test</Button>
+              <Button asChild variant="ghost">
+                <Link href="/jobs">
+                  <ArrowLeft className="mr-2 h-4 w-4" /> Back to Jobs
+                </Link>
+              </Button>
+            </div>
           </div>
         </div>
-
-        {/* Status Card */}
-        <Card className="mb-6">
-          <CardHeader>
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-2">
-                  <div
-                    className={`w-12 h-12 rounded-full flex items-center justify-center ${statusInfo.color}`}
-                  >
-                    <StatusIcon className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <CardTitle>Current Status: {statusInfo.label}</CardTitle>
-                    <CardDescription>{statusInfo.description}</CardDescription>
-                  </div>
-                </div>
-              </div>
-              <Badge variant="outline" className={statusInfo.color}>
-                {statusInfo.label}
-              </Badge>
-            </div>
-          </CardHeader>
-        </Card>
 
         {/* Application Details */}
         <Card className="mb-6">
@@ -295,7 +268,7 @@ export default function StatusPage() {
                   <Mail className="h-4 w-4" />
                   Email
                 </label>
-                <p className="text-gray-900">{application.email}</p>
+                <p className="text-gray-900"><a className="text-teal-600 hover:underline" href={`mailto:${application.email}`}>{application.email}</a></p>
               </div>
 
               <div>
@@ -303,7 +276,7 @@ export default function StatusPage() {
                   <Phone className="h-4 w-4" />
                   Phone
                 </label>
-                <p className="text-gray-900">{application.phone}</p>
+                <p className="text-gray-900">{application.phone ? (<a className="text-teal-600 hover:underline" href={`tel:${application.phone}`}>{application.phone}</a>) : '—'}</p>
               </div>
 
               <div>
@@ -321,35 +294,38 @@ export default function StatusPage() {
                     }
                   )}
                 </p>
+
+                {application.resume_url && (
+                  <div className="mt-3">
+                    <a href={application.resume_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm text-teal-600 hover:underline">
+                      <FileText className="w-4 h-4" /> View / Download Resume
+                    </a>
+                  </div>
+                )}
               </div>
             </div>
 
-            {application.resume_match_score !== null &&
-              application.resume_match_score !== undefined && (
-                <>
-                  <Separator />
-                  <div>
-                    <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
-                      <Award className="h-4 w-4" />
-                      Match Score
-                    </label>
-                    <div className="mt-2">
-                      <Badge
-                        variant={
-                          application.resume_match_score >= 70
-                            ? "default"
-                            : application.resume_match_score >= 50
-                              ? "secondary"
-                              : "outline"
-                        }
-                        className="text-lg px-4 py-1"
-                      >
-                        {application.resume_match_score}% Match
-                      </Badge>
+            {application.resume_match_score !== null && application.resume_match_score !== undefined && (
+              <>
+                <Separator />
+                <div>
+                  <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
+                    <Award className="h-4 w-4" />
+                    Match Score
+                  </label>
+
+                  <div className="mt-3">
+                    <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-4 overflow-hidden">
+                      <div className={`h-4 rounded-full ${application.resume_match_score >= 70 ? 'bg-emerald-500' : application.resume_match_score >= 50 ? 'bg-amber-500' : 'bg-rose-500'}`} style={{ width: `${Math.min(Math.max(application.resume_match_score, 0), 100)}%` }} />
+                    </div>
+                    <div className="mt-2 flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
+                      <span>{application.resume_match_score}% match</span>
+                      <span className="font-medium">{application.resume_match_score >= 70 ? 'Strong match' : application.resume_match_score >= 50 ? 'Partial match' : 'Low match'}</span>
                     </div>
                   </div>
-                </>
-              )}
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -401,14 +377,18 @@ export default function StatusPage() {
 
                   {/* Assessment / Test CTA when available */}
                   {application.test_token && (
-                    <div className="mt-4 p-4 rounded-md bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
-                      <h4 className="text-sm font-semibold text-gray-900 mb-2">Assessment</h4>
-                      <p className="text-gray-700 text-sm mb-3">You have been invited to complete an assessment as part of this interview. Completing and passing the test may be required to progress.</p>
-                      <div className="flex items-center gap-3">
-                        <Button asChild>
-                          <Link href={`/test/${application.test_token}`}>Take Assessment</Link>
-                        </Button>
-                        <a href="#" className="text-sm text-gray-500">Need help? Contact HR</a>
+                    <div className="mt-4 p-4 rounded-lg bg-gradient-to-r from-white to-cyan-50 dark:from-gray-800 dark:to-slate-900 border border-cyan-100 dark:border-slate-700 shadow-sm">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div>
+                          <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Assessment</h4>
+                          <p className="text-sm text-gray-700 dark:text-gray-300">You have been invited to complete an assessment as part of this interview. Completing and passing the test may be required to progress.</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <Button asChild className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                            <Link href={`/test/${application.test_token}`}>Take Assessment</Link>
+                          </Button>
+                          <a href="mailto:hr@company.com" className="text-sm text-gray-500">Need help? Contact HR</a>
+                        </div>
                       </div>
                     </div>
                   )}

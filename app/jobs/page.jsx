@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import NavBar from "@/components/NavBar";
 import { useSaveJob } from "@/hooks/useSaveJob";
+import { Grid, List, ArrowUpDown } from "lucide-react";
 
 export default function AllJobsPage() {
   const { data: session } = useSession();
@@ -14,9 +15,21 @@ export default function AllJobsPage() {
   const [filterLocation, setFilterLocation] = useState("");
   const [filterType, setFilterType] = useState("");
   const [saveMessage, setSaveMessage] = useState(null);
-  
+  const [view, setView] = useState("grid"); // grid or list
+  const [sortBy, setSortBy] = useState("");
+
   // Save job hook with localStorage
   const { toggleSaveJob, savedJobs, loading: savingJob } = useSaveJob();
+
+  const formatSalary = (salary) => {
+    if (!salary && salary !== 0) return "Competitive";
+    if (typeof salary === "string") return salary;
+    if (typeof salary === "number") {
+      if (salary >= 100000) return `$${(salary / 1000).toFixed(0)}k`;
+      return `$${salary.toLocaleString()}`;
+    }
+    return String(salary);
+  };
 
   // Define only 4 cities
   const ALLOWED_LOCATIONS = ["Amdavad", "Bangalore", "Hyderabad", "Mumbai"];
@@ -90,6 +103,22 @@ export default function AllJobsPage() {
     return matchesSearch && matchesLocation && matchesType;
   });
 
+  const sortedJobs = useMemo(() => {
+    const arr = [...filteredJobs];
+    if (sortBy === "newest") {
+      arr.sort((a, b) => {
+        const ta = new Date(a.posted_at || a.created_at || 0).getTime();
+        const tb = new Date(b.posted_at || b.created_at || 0).getTime();
+        return tb - ta;
+      });
+    } else if (sortBy === "salary_desc") {
+      arr.sort((a, b) => (b.salary_min || 0) - (a.salary_min || 0));
+    } else if (sortBy === "salary_asc") {
+      arr.sort((a, b) => (a.salary_min || 0) - (b.salary_min || 0));
+    }
+    return arr;
+  }, [filteredJobs, sortBy]);
+
   // Only show 4 allowed locations
   const locations = ALLOWED_LOCATIONS.filter(loc => 
     jobs.some(j => j.location?.toLowerCase().includes(loc.toLowerCase()))
@@ -118,8 +147,25 @@ export default function AllJobsPage() {
           <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl">
             Browse {jobs.length} amazing opportunities and start your career journey with us.
           </p>
-        </div>
 
+          {/* Controls */}
+          <div className="mt-6 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <label className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-2"> <ArrowUpDown className="w-4 h-4" /> Sort</label>
+              <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="px-3 py-2 rounded-lg border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-700 dark:text-gray-200">
+                <option value="">Relevance</option>
+                <option value="newest">Newest</option>
+                <option value="salary_desc">Salary: High → Low</option>
+                <option value="salary_asc">Salary: Low → High</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button onClick={() => setView('grid')} className={`p-2 rounded-md ${view === 'grid' ? 'bg-slate-100 dark:bg-gray-800' : ''}`} aria-label="Grid view"><Grid className="w-5 h-5" /></button>
+              <button onClick={() => setView('list')} className={`p-2 rounded-md ${view === 'list' ? 'bg-slate-100 dark:bg-gray-800' : ''}`} aria-label="List view"><List className="w-5 h-5" /></button>
+            </div>
+          </div>
+        </div>
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Filters Sidebar */}
           <div className="lg:col-span-1 animate-in fade-in slide-in-from-left duration-500 delay-100">
@@ -258,7 +304,7 @@ export default function AllJobsPage() {
               <div>
                 <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
                   <span className="text-2xl">💼</span>
-                  {loading ? "Loading..." : `${filteredJobs.length} Position${filteredJobs.length !== 1 ? 's' : ''}`}
+                  {loading ? "Loading..." : `${sortedJobs.length} Position${sortedJobs.length !== 1 ? 's' : ''}`}
                 </h2>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
                   {filteredJobs.length === 0 ? "No matching jobs found" : "Perfect opportunities for your skill set"}
@@ -268,7 +314,7 @@ export default function AllJobsPage() {
             </div>
 
             {loading ? (
-              <div className="space-y-4">
+              <div className="grid gap-4">
                 {[1, 2, 3].map((i) => (
                   <div
                     key={i}
@@ -280,7 +326,7 @@ export default function AllJobsPage() {
                   </div>
                 ))}
               </div>
-            ) : filteredJobs.length === 0 ? (
+            ) : sortedJobs.length === 0 ? (
               <div className="bg-white dark:bg-gray-800 p-16 rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-600 text-center">
                 <div className="text-6xl mb-4">😔</div>
                 <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
@@ -303,25 +349,52 @@ export default function AllJobsPage() {
               </div>
             ) : (
               <div className="space-y-6">
-                {filteredJobs.map((job, index) => (
+                {sortedJobs.map((job, index) => (
                   <div
                     key={job._id || index}
-                    className="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-2xl border-2 border-gray-100 dark:border-gray-700 shadow-lg hover:shadow-2xl hover:border-teal-300 dark:hover:border-teal-600 transition-all transform hover:-translate-y-1 duration-300 group overflow-hidden relative"
+                    className={`bg-white dark:bg-gray-800 rounded-2xl border-2 border-gray-100 dark:border-gray-700 shadow-lg hover:shadow-2xl transition-all transform duration-300 group overflow-hidden relative ${view === 'list' ? 'p-4 flex items-center gap-6' : 'p-6 md:p-8 hover:border-teal-300 dark:hover:border-teal-600 hover:-translate-y-1'}`}
                   >
                     {/* Gradient Background */}
                     <div className="absolute top-0 right-0 w-40 h-40 bg-linear-to-br from-teal-100 to-transparent dark:from-teal-900/30 rounded-full -mr-20 -mt-20 group-hover:scale-150 transition-transform duration-500 opacity-0 group-hover:opacity-100"></div>
 
                     <div className="relative">
-                      {/* Header with Title and Actions */}
                       <div className="flex items-start justify-between mb-6">
-                        <div className="flex-1 pr-4">
-                          <h3 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-2 group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">
-                            {job.title}
-                          </h3>
-                          <p className="text-base text-gray-600 dark:text-gray-400 font-semibold flex items-center gap-2">
-                            <span className="text-lg">🏢</span>
-                            {job.company || "Company"}
-                          </p>
+                        <div className="flex items-start gap-4">
+                          <div className="w-14 h-14 rounded-lg bg-gradient-to-br from-slate-100 to-white dark:from-gray-800 dark:to-gray-900 flex items-center justify-center text-xl font-bold text-teal-600 overflow-hidden">
+                            {job.company_logo ? (
+                              <img src={job.company_logo} alt={job.company} className="w-full h-full object-cover rounded-lg" />
+                            ) : (
+                              <span>{(job.company || 'Co').split(' ').map(s=>s.charAt(0)).slice(0,2).join('').toUpperCase()}</span>
+                            )}
+                          </div>
+
+                          <div className="min-w-0">
+                            <h3 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-1 group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors truncate">
+                              {job.title}
+                            </h3>
+                            <p className="text-sm text-gray-600 dark:text-gray-400 font-semibold flex items-center gap-2 truncate">
+                              <span className="text-sm">🏢</span>
+                              <span className="truncate">{job.company || "Company"}</span>
+                            </p>
+
+                            <div className="mt-2 flex items-center gap-2 text-xs text-gray-500">
+                              <span className="px-2 py-1 bg-slate-100 dark:bg-gray-800 rounded-full">{job.type || 'Full-time'}</span>
+                              <span className="px-2 py-1 bg-slate-100 dark:bg-gray-800 rounded-full">{job.experience || 'Entry'}</span>
+                              <span className="px-2 py-1 bg-slate-100 dark:bg-gray-800 rounded-full">{job.location || 'Remote'}</span>
+                              {job.posted_at && (
+                                <span className="px-2 py-1 bg-slate-100 dark:bg-gray-800 rounded-full">Posted: {new Date(job.posted_at).toLocaleDateString()}</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          <Link href={`/jobs/${job._id}`} className="text-sm text-gray-600 hover:text-teal-600">View</Link>
+                          {session ? (
+                            <Link href={`/jobs/${job._id}/apply`} className="px-4 py-2 bg-linear-to-r from-teal-500 to-cyan-500 text-white rounded-md text-sm font-semibold">Apply</Link>
+                          ) : (
+                            <Link href="/auth/select-role" className="px-4 py-2 bg-linear-to-r from-teal-500 to-cyan-500 text-white rounded-md text-sm font-semibold">Sign In to Apply</Link>
+                          )}
                         </div>
                       </div>
 
@@ -383,23 +456,20 @@ export default function AllJobsPage() {
                       </div>
 
                       {/* Action Buttons */}
-                      <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                      <div className={`flex ${view === 'list' ? 'items-center gap-4 ml-auto' : 'gap-3 pt-4 border-t border-gray-200 dark:border-gray-700'}`}>
                         <Link
-                          href={`/jobs/${job._id}`}
-                          className="flex-1 text-center px-6 py-3 bg-linear-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white rounded-xl font-bold text-sm transition-all shadow-md hover:shadow-lg transform hover:scale-105 duration-300 flex items-center justify-center gap-2"
+                          href={session ? `/jobs/${job._id}/apply` : `/jobs/${job._id}`}
+                          className={`inline-flex items-center ${view === 'list' ? 'px-4 py-2 bg-linear-to-r from-teal-500 to-cyan-500 text-white rounded-md font-semibold text-sm' : 'flex-1 text-center px-6 py-3 bg-linear-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white rounded-xl font-bold text-sm transition-all shadow-md hover:shadow-lg transform hover:scale-105 duration-300'}`}
                         >
-                          <span>📖</span> View Details
+                          {session ? 'Apply Now' : 'View / Sign in to Apply'}
                         </Link>
+
                         <button
                           onClick={(e) => handleSaveJob(job, e)}
-                          className={`px-6 py-3 rounded-xl font-bold text-xl transition-all duration-300 transform ${
-                            isJobSaved(job._id)
-                              ? "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 scale-110"
-                              : "bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 hover:scale-110"
-                          } ${savingJob ? "animate-pulse" : ""}`}
-                          title={isJobSaved(job._id) ? "Remove from saved" : "Save job"}
+                          className={`p-3 rounded-lg transition-all ${isJobSaved(job._id) ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
+                          title={isJobSaved(job._id) ? 'Remove from saved' : 'Save job'}
                         >
-                          {savingJob ? "✨" : isJobSaved(job._id) ? "❤️" : "🤍"}
+                          {savingJob ? '✨' : isJobSaved(job._id) ? '❤️' : '🤍'}
                         </button>
                       </div>
                     </div>

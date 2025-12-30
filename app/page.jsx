@@ -450,29 +450,276 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Stats Section */}
-      <section className="py-16 md:py-20 px-4 sm:px-6 lg:px-8">
+      {/* How It Works (Improved) */}
+      <section id="how-it-works" className="py-20 md:py-28 px-4 sm:px-6 lg:px-8">
         <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
-            <div className="text-center">
-              <div className="text-4xl md:text-5xl lg:text-6xl font-bold text-teal-600 dark:text-teal-400 mb-2">500+</div>
-              <div className="text-sm md:text-base text-gray-600 dark:text-gray-400 font-medium">Companies Trust Us</div>
+          <div className="text-center mb-12">
+            <h3 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white">How it works</h3>
+            <p className="text-sm md:text-base text-gray-600 dark:text-gray-400 mt-3 max-w-2xl mx-auto">A simple, human-friendly hiring flow: post a job, screen smarter with AI, and engage the best candidates — all in one place.</p>
+          </div>
+
+          {/* Timeline / Steps */}
+          <div className="relative">
+            <div className="hidden md:block absolute left-1/2 transform -translate-x-1/2 top-6 bottom-6 w-px bg-slate-200 dark:bg-slate-700"></div>
+
+            <div className="space-y-8 md:space-y-0 md:grid md:grid-cols-3 md:gap-x-8">
+              {/* Step 1 */}
+              <div className="md:col-span-1">
+                <div className="flex md:flex-col items-start md:items-center gap-4">
+                  <div className="flex-shrink-0">
+                    <div className="w-16 h-16 rounded-full bg-linear-to-tr from-cyan-600 to-teal-500 text-white flex items-center justify-center text-xl font-bold">1</div>
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">Post & Publish</h4>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Publish your role in seconds with smart templates and recommended screening criteria.</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Step 2 */}
+              <div className="md:col-span-1">
+                <div className="flex md:flex-col items-start md:items-center gap-4">
+                  <div className="flex-shrink-0">
+                    <div className="w-16 h-16 rounded-full bg-linear-to-tr from-cyan-600 to-teal-500 text-white flex items-center justify-center text-xl font-bold">2</div>
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">AI Screening</h4>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Automatic parsing, skill extraction and ranking surface top matches for quicker decisions.</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Step 3 */}
+              <div className="md:col-span-1">
+                <div className="flex md:flex-col items-start md:items-center gap-4">
+                  <div className="flex-shrink-0">
+                    <div className="w-16 h-16 rounded-full bg-linear-to-tr from-cyan-600 to-teal-500 text-white flex items-center justify-center text-xl font-bold">3</div>
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">Engage & Schedule</h4>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Multi-select candidates, send messages, and schedule interviews with calendar invites.</p>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="text-center">
-              <div className="text-4xl md:text-5xl lg:text-6xl font-bold text-teal-600 dark:text-teal-400 mb-2">50K+</div>
-              <div className="text-sm md:text-base text-gray-600 dark:text-gray-400 font-medium">Employees Managed</div>
-            </div>
-            <div className="text-center">
-              <div className="text-4xl md:text-5xl lg:text-6xl font-bold text-teal-600 dark:text-teal-400 mb-2">99.9%</div>
-              <div className="text-sm md:text-base text-gray-600 dark:text-gray-400 font-medium">Uptime Guarantee</div>
-            </div>
-            <div className="text-center">
-              <div className="text-4xl md:text-5xl lg:text-6xl font-bold text-teal-600 dark:text-teal-400 mb-2">24/7</div>
-              <div className="text-sm md:text-base text-gray-600 dark:text-gray-400 font-medium">Support Available</div>
+
+            {/* CTA */}
+            <div className="mt-8 text-center">
+              <a href="#" className="inline-flex items-center gap-2 px-6 py-3 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl font-semibold">Start hiring smarter →</a>
             </div>
           </div>
         </div>
       </section>
+
+      {/* Messaging & Interview Scheduling (Improved) */}
+      <section id="messaging" className="py-16 md:py-24 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-6xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-8 items-center">
+            {/* Left - Copy */}
+            <div>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-50 dark:bg-cyan-900/20 border border-cyan-100 dark:border-cyan-800 mb-4">
+                <span className="text-xs text-cyan-700 dark:text-cyan-300">Feature</span>
+              </div>
+              <h3 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white mb-4">Messaging & Interview Scheduling</h3>
+              <p className="text-base text-gray-600 dark:text-gray-400 mb-6">Streamline candidate communication and coordinate interviews without leaving your hiring dashboard. Send bulk messages, personalize templates, and automatically schedule interviews with calendar invites and reminders.</p>
+
+              <div className="grid gap-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-linear-to-tr from-cyan-600 to-teal-500 text-white flex items-center justify-center">💬</div>
+                  <div>
+                    <div className="text-sm font-semibold text-slate-900 dark:text-white">Bulk & Individual Messaging</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400">Compose one message or send templated messages to many candidates at once.</div>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-linear-to-tr from-cyan-600 to-teal-500 text-white flex items-center justify-center">📋</div>
+                  <div>
+                    <div className="text-sm font-semibold text-slate-900 dark:text-white">Smart Templates</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400">Personalize at scale with variables and role-specific templates.</div>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-linear-to-tr from-cyan-600 to-teal-500 text-white flex items-center justify-center">📅</div>
+                  <div>
+                    <div className="text-sm font-semibold text-slate-900 dark:text-white">Interview Scheduling</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400">Propose slots, sync calendars, and send invites automatically to attendees.</div>
+                  </div>
+                </div>
+
+                <div className="mt-4">
+                  <a href="#" className="inline-flex items-center gap-2 px-5 py-3 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl font-semibold">Try Messaging & Scheduling →</a>
+                </div>
+              </div>
+            </div>
+
+            {/* Right - Mockup */}
+            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 p-6 shadow-md">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Messaging preview */}
+                <div className="rounded-lg bg-slate-50 dark:bg-slate-900 p-3">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="text-sm font-medium">Inbox</div>
+                    <div className="text-xs text-slate-400">3 unread</div>
+                  </div>
+                  <ul className="space-y-2">
+                    <li className="p-2 rounded-md bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700">
+                      <div className="text-sm font-semibold">Interview invite — Frontend</div>
+                      <div className="text-xs text-slate-500 mt-1">You've been shortlisted</div>
+                    </li>
+                    <li className="p-2 rounded-md">
+                      <div className="text-sm font-semibold">Schedule: Portfolio Review</div>
+                      <div className="text-xs text-slate-500 mt-1">Mon, Jan 5 • 10:00 AM</div>
+                    </li>
+                  </ul>
+
+                  <div className="mt-3">
+                    <button className="w-full px-3 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-md text-sm">View messages</button>
+                  </div>
+                </div>
+
+                {/* Calendar preview */}
+                <div className="rounded-lg bg-slate-50 dark:bg-slate-900 p-3">
+                  <div className="text-sm font-medium mb-2">Upcoming Interviews</div>
+                  <div className="space-y-3">
+                    <div className="p-2 rounded-md bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700">
+                      <div className="text-sm font-semibold">Frontend Engineer • Screening</div>
+                      <div className="text-xs text-slate-500 mt-1">Tue, Dec 23 • 11:00 AM</div>
+                    </div>
+                    <div className="p-2 rounded-md">
+                      <div className="text-sm font-semibold">Data Analyst • Interview</div>
+                      <div className="text-xs text-slate-500 mt-1">Thu, Dec 25 • 2:00 PM</div>
+                    </div>
+                  </div>
+
+                  <div className="mt-3">
+                    <button className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-sm">Open calendar</button>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Resume Parsing & Insights (Improved) */}
+      <section id="resume-parser" className="py-16 md:py-24 px-4 sm:px-6 lg:px-8 bg-linear-to-br from-white to-slate-50 dark:from-gray-900 dark:to-gray-800">
+        <div className="max-w-6xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-8 items-center">
+            {/* Left - Mockup */}
+            <div className="order-1 md:order-1">
+              <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 p-6 shadow-md">
+                <div className="text-sm font-medium text-slate-900 dark:text-white mb-3">Resume Parser Preview</div>
+                <div className="grid gap-3">
+                  <div className="rounded-md bg-slate-50 dark:bg-slate-900 p-3">
+                    <div className="text-xs text-slate-500 mb-2">Parsed Candidate</div>
+                    <div className="text-sm font-semibold">Anjali Sharma</div>
+                    <div className="text-xs text-slate-400">Senior Frontend Engineer</div>
+                    <div className="mt-3 text-sm text-slate-600 dark:text-slate-400">
+                      <strong>Skills:</strong> React, TypeScript, Next.js, Tailwind
+                    </div>
+                    <div className="mt-2 text-sm text-slate-600 dark:text-slate-400">
+                      <strong>Summary:</strong> 8+ years building scalable frontends and mentoring teams. Strong match for UI-heavy roles.
+                    </div>
+                    <div className="mt-3 flex items-center justify-between">
+                      <div className="text-xs text-slate-500">Match score</div>
+                      <div className="text-sm font-semibold text-teal-600">92%</div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-md bg-slate-50 dark:bg-slate-900 p-3">
+                    <div className="text-xs text-slate-500">Resume Upload</div>
+                    <div className="mt-2">
+                      <button className="px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-sm">Upload a resume</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right - Copy */}
+            <div className="order-2 md:order-2">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-50 dark:bg-cyan-900/20 border border-cyan-100 dark:border-cyan-800 mb-4">
+                <span className="text-xs text-cyan-700 dark:text-cyan-300">Feature</span>
+              </div>
+              <h3 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white mb-4">Resume Parsing & Insights</h3>
+              <p className="text-base text-gray-600 dark:text-gray-400 mb-6">Automatically extract candidate information, surface skills and experience, and get a match score so you can quickly prioritize top applicants.</p>
+
+              <div className="grid gap-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-linear-to-tr from-cyan-600 to-teal-500 text-white flex items-center justify-center">🔍</div>
+                  <div>
+                    <div className="text-sm font-semibold text-slate-900 dark:text-white">Automated Parsing</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400">Extract names, contacts, skills, experience and education instantly.</div>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-linear-to-tr from-cyan-600 to-teal-500 text-white flex items-center justify-center">📊</div>
+                  <div>
+                    <div className="text-sm font-semibold text-slate-900 dark:text-white">Match Scoring</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400">Get objective match scores to prioritize candidates and reduce bias.</div>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-linear-to-tr from-cyan-600 to-teal-500 text-white flex items-center justify-center">🧾</div>
+                  <div>
+                    <div className="text-sm font-semibold text-slate-900 dark:text-white">Candidate Summaries</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400">Auto-generated summaries help hiring managers review faster.</div>
+                  </div>
+                </div>
+
+                <div className="mt-4">
+                  <a href="#" className="inline-flex items-center gap-2 px-5 py-3 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl font-semibold">Try the parser →</a>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      {/* Integrations */}
+      <section className="py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-6xl mx-auto text-center">
+          <h4 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">Integrations</h4>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">Connect with the tools you already use</p>
+          <div className="flex items-center justify-center gap-6 flex-wrap">
+            <div className="w-24 h-12 bg-slate-50 dark:bg-slate-900 rounded-lg flex items-center justify-center">Slack</div>
+            <div className="w-24 h-12 bg-slate-50 dark:bg-slate-900 rounded-lg flex items-center justify-center">Google</div>
+            <div className="w-24 h-12 bg-slate-50 dark:bg-slate-900 rounded-lg flex items-center justify-center">LinkedIn</div>
+            <div className="w-24 h-12 bg-slate-50 dark:bg-slate-900 rounded-lg flex items-center justify-center">Zapier</div>
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials */}
+      <section className="py-16 md:py-24 px-4 sm:px-6 lg:px-8 bg-linear-to-br from-cyan-50 to-white dark:from-cyan-900/10">
+        <div className="max-w-6xl mx-auto text-center">
+          <h3 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white mb-4">What customers say</h3>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-8">Real feedback from teams using HRMS Pro</p>
+
+          <div className="grid md:grid-cols-3 gap-6">
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm">
+              <div className="text-base text-slate-700 dark:text-slate-300">“The AI screening halved our review time — it’s been a game changer.”</div>
+              <div className="text-sm text-slate-500 mt-3">— Talent Lead, TechCo</div>
+            </div>
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm">
+              <div className="text-base text-slate-700 dark:text-slate-300">“Interview scheduling and messaging saved hours each week.”</div>
+              <div className="text-sm text-slate-500 mt-3">— HR Manager, RetailCo</div>
+            </div>
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm">
+              <div className="text-base text-slate-700 dark:text-slate-300">“Great support and reliable uptime — highly recommend.”</div>
+              <div className="text-sm text-slate-500 mt-3">— COO, FinServe</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
 
       {/* Final CTA Section */}
       <section className="relative py-20 md:py-28 px-4 sm:px-6 lg:px-8 overflow-hidden">

@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
-import { generateMCQ } from "@/lib/openai";
+import { generateMCQs } from "@/lib/openai";
 
 // POST /api/tests/generate - Generate MCQ test for a job (HR/Admin) OR generate ad-hoc for a candidate using a test token
 export async function POST(request) {

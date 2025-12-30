@@ -147,7 +147,7 @@ export default function JobSeekerDashboard() {
                 <span className="text-sm font-semibold text-teal-700 dark:text-teal-300">Welcome back!</span>
               </div>
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-slate-900 dark:text-white mb-4">
-                Hi, <span className="bg-linear-to-r from-teal-500 to-cyan-600 bg-clip-text text-transparent">{session?.user?.name?.split(' ')[0] || "there"}</span> 👨‍💼
+                Hi, <span className="bg-linear-to-r from-teal-500 to-cyan-600 bg-clip-text text-transparent">{session?.user?.name?.split(' ')[0] || "there"}</span> �‍💼
               </h1>
               <p className="text-base md:text-lg text-slate-600 dark:text-slate-400 max-w-3xl leading-relaxed">
                 Track your job applications, discover personalized opportunities, and advance your career with our AI-powered platform.
@@ -285,7 +285,7 @@ export default function JobSeekerDashboard() {
                           <span className="font-medium">{job.salary || "Competitive"}</span>
                         </div>
                         <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
-                          <span className="text-lg">👤</span>
+                          <span className="text-lg">�</span>
                           <span className="font-medium">{job.experience || "Entry Level"}</span>
                         </div>
                       </div>

@@ -103,6 +103,13 @@ export default function NavBar() {
                 </Link>
 
                 <Link
+                  href="/seeker/messages"
+                  className={`ml-2 px-4 py-2 rounded-lg font-medium transition-colors ${isActive("/seeker/messages") ? "bg-teal-600 text-white hover:bg-teal-700" : "bg-teal-600 text-white hover:bg-teal-700"}`}
+                >
+                  💬 Messages
+                </Link>
+
+                <Link
                   href="/seeker/profile"
                   className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                     isActive("/seeker/profile")
@@ -183,18 +190,28 @@ export default function NavBar() {
           {/* Mobile Menu Button & Actions */}
           <div className="flex md:hidden items-center space-x-3">
             {session && session.user.role === "job_seeker" && (
-              <Link
-                href="/seeker/saved-jobs"
-                className="relative text-lg hover:scale-110 transition-transform"
-                title="Saved Jobs"
-              >
-                ❤️
-                {savedCount > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
-                    {savedCount}
-                  </span>
-                )}
-              </Link>
+              <>
+                <Link
+                  href="/seeker/saved-jobs"
+                  className="relative text-lg hover:scale-110 transition-transform"
+                  title="Saved Jobs"
+                >
+                  ❤️
+                  {savedCount > 0 && (
+                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                      {savedCount}
+                    </span>
+                  )}
+                </Link>
+
+                <Link
+                  href="/seeker/messages"
+                  className="relative text-lg ml-3 hover:scale-110 transition-transform"
+                  title="Messages"
+                >
+                  💬
+                </Link>
+              </>
             )}
             
             {/* Hamburger Menu Button */}
@@ -324,6 +341,18 @@ export default function NavBar() {
                       {savedCount}
                     </span>
                   )}
+                </Link>
+
+                <Link
+                  href="/seeker/messages"
+                  className={`flex items-center space-x-3 px-4 py-3 rounded-xl font-medium transition-all ${
+                    isActive("/seeker/messages")
+                      ? "text-cyan-700 dark:text-cyan-400 bg-cyan-100 dark:bg-cyan-900/30 shadow-sm"
+                      : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                  }`}
+                >
+                  <span className="text-xl">💬</span>
+                  <span>Messages</span>
                 </Link>
 
                 <Link

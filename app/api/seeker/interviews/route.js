@@ -43,7 +43,7 @@ export async function GET(request) {
           status,
           applied_at,
           scheduled_at,
-          jobs (id, title, company, location, description, salary_min, salary_max, job_type)
+          jobs (id, title, company, location, description, salary_min, salary_max, job_type, created_by)
         `)
         .eq('seeker_id', jobSeeker.id)
         .in('status', ['interviewing', 'interview_scheduled'])
@@ -95,7 +95,7 @@ export async function GET(request) {
           status,
           created_at,
           scheduled_at,
-          jobs (id, title, company, location, description, salary_min, salary_max, job_type)
+          jobs (id, title, company, location, description, salary_min, salary_max, job_type, created_by)
         `)
         .eq('email', userEmail)
         .in('status', ['interviewing', 'interview_scheduled'])
@@ -166,6 +166,36 @@ export async function GET(request) {
     });
 
     console.log('Interviews found (combined):', combined.length);
+
+    // Fetch HR profiles for the jobs' creators to surface logos / avatar
+    const createdByIds = [...new Set(combined.map(i => i.raw?.jobs?.created_by).filter(Boolean))];
+    if (createdByIds.length > 0) {
+      const { data: hrProfiles, error: hrError } = await supabaseAdmin
+        .from('hr_profiles')
+        .select('hr_user_id, profile_picture_url, full_name')
+        .in('hr_user_id', createdByIds);
+
+      if (!hrError && Array.isArray(hrProfiles)) {
+        const hrMap = hrProfiles.reduce((acc, p) => {
+          acc[p.hr_user_id] = p;
+          return acc;
+        }, {});
+
+        combined.forEach((i) => {
+          const cb = i.raw?.jobs?.created_by;
+          i.hr = cb && hrMap[cb] ? {
+            hr_user_id: cb,
+            profile_picture_url: hrMap[cb].profile_picture_url || null,
+            full_name: hrMap[cb].full_name || null,
+          } : null;
+        });
+      } else {
+        // If hr profiles couldn't be fetched, set hr to null to avoid breaking the UI
+        combined.forEach((i) => (i.hr = null));
+      }
+    } else {
+      combined.forEach((i) => (i.hr = null));
+    }
 
     return Response.json({
       interviews: combined,

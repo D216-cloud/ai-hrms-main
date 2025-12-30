@@ -44,7 +44,25 @@ export default function ApplyPage() {
   const [profileResume, setProfileResume] = useState(null);
   const [useProfileResume, setUseProfileResume] = useState(false);
   const [showResumePreview, setShowResumePreview] = useState(false);
+  const [uploadedResumePreviewUrl, setUploadedResumePreviewUrl] = useState(null);
   const [autoFillComplete, setAutoFillComplete] = useState(false);
+  const [parsedResumeData, setParsedResumeData] = useState(null); // raw parsed data from /api/parse-resume
+  const [matchPreview, setMatchPreview] = useState(null); // { score, matched, missing }
+  const [draftSaving, setDraftSaving] = useState(false);
+  const [hasDraft, setHasDraft] = useState(false);
+  const [coverLoading, setCoverLoading] = useState(false);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      setHasDraft(Boolean(parsed && parsed[params.id]));
+    } catch (err) {
+      console.error('Failed to check drafts:', err);
+    }
+  }, [params.id]);
+
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -56,11 +74,83 @@ export default function ApplyPage() {
     coverLetter: "",
   });
 
+  const DRAFT_KEY = 'job_apply_drafts_v1';
+
+  const saveDraft = () => {
+    try {
+      setDraftSaving(true);
+      const raw = localStorage.getItem(DRAFT_KEY);
+      const parsed = raw ? JSON.parse(raw) : {};
+      parsed[params.id] = {
+        savedAt: new Date().toISOString(),
+        formData,
+        useProfileResume,
+        profileResumeMeta: profileResume ? { name: profileResume.name, url: profileResume.url } : null,
+      };
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(parsed));
+      setHasDraft(true);
+      toast.success('Draft saved locally');
+    } catch (err) {
+      console.error('Failed to save draft:', err);
+      toast.error('Failed to save draft locally');
+    } finally {
+      setDraftSaving(false);
+    }
+  };
+
+  const loadDraft = () => {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (!raw) return false;
+      const parsed = JSON.parse(raw);
+      const d = parsed[params.id];
+      if (!d) return false;
+      setFormData(d.formData || {});
+      setUseProfileResume(Boolean(d.useProfileResume));
+      if (d.profileResumeMeta) setProfileResume(d.profileResumeMeta);
+      toast.success('Draft loaded');
+      setHasDraft(true);
+      return true;
+    } catch (err) {
+      console.error('Failed to load draft:', err);
+      toast.error('Failed to load draft');
+      return false;
+    }
+  };
+
+  const deleteDraft = () => {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      delete parsed[params.id];
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(parsed));
+      setHasDraft(false);
+      toast.success('Draft deleted');
+    } catch (err) {
+      console.error('Failed to delete draft:', err);
+      toast.error('Failed to delete draft');
+    }
+  };
+
   useEffect(() => {
     if (params.id) {
       fetchJob();
       if (session?.user?.email) {
         fetchProfileResume();
+      }
+
+      // check draft existence
+      try {
+        const raw = localStorage.getItem(DRAFT_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          setHasDraft(Boolean(parsed && parsed[params.id]));
+        } else {
+          setHasDraft(false);
+        }
+      } catch (err) {
+        console.error('Error checking draft:', err);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -265,8 +355,21 @@ export default function ApplyPage() {
 
       console.log("Parse API data received:", data);
 
+      // Save parsed data for match preview and suggestions
+      setParsedResumeData(data);
+
+      // Create a preview URL for the uploaded resume file (for iframe preview)
+      try {
+        if (file && typeof URL !== 'undefined') {
+          const url = URL.createObjectURL(file);
+          setUploadedResumePreviewUrl(url);
+        }
+      } catch (err) {
+        console.error('Failed to create preview URL for uploaded resume:', err);
+      }
+
       // Safely extract company name from experience array
-      let companyName = "";
+      let companyName = ""; 
       if (data.experience && Array.isArray(data.experience) && data.experience.length > 0) {
         companyName = data.experience[0].company || "";
       }
@@ -410,6 +513,107 @@ export default function ApplyPage() {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  useEffect(() => {
+    try {
+      const jobSkills = (job?.skills || []).map(s => String(s).trim().toLowerCase()).filter(Boolean);
+      const candidateSkills = (parsedResumeData && parsedResumeData.skills && Array.isArray(parsedResumeData.skills))
+        ? parsedResumeData.skills.map(s => String(s).trim().toLowerCase()).filter(Boolean)
+        : (formData.skills ? formData.skills.split(',').map(s => String(s).trim().toLowerCase()).filter(Boolean) : []);
+
+      const matched = jobSkills.filter(js => candidateSkills.includes(js));
+      const missing = jobSkills.filter(js => !candidateSkills.includes(js));
+      const score = jobSkills.length === 0 ? 0 : Math.round((matched.length / jobSkills.length) * 100);
+      setMatchPreview({ score, matched, missing });
+    } catch (e) {
+      console.error('Error computing match preview:', e);
+    }
+  }, [job, parsedResumeData, formData.skills]);
+
+  const insertSuggestedSentence = (skills) => {
+    const sentence = skills && skills.length > 0 ? `I have experience with ${skills.join(', ')}.` : '';
+    setFormData(prev => ({ ...prev, coverLetter: `${prev.coverLetter ? prev.coverLetter + '\n\n' : ''}${sentence}` }));
+    toast.success('Inserted suggested sentence into cover letter');
+  };
+
+  const openUploadedPreview = () => {
+    if (uploadedResumePreviewUrl) {
+      setShowResumePreview(true);
+    } else if (resumeFile) {
+      try {
+        const url = URL.createObjectURL(resumeFile);
+        setUploadedResumePreviewUrl(url);
+        setShowResumePreview(true);
+      } catch (err) {
+        console.error('Failed to create preview URL:', err);
+        toast.error('Failed to preview resume');
+      }
+    }
+  };
+
+  // Generate a short AI cover letter paragraph using server-side OpenAI endpoint
+  const generateCoverLetterSuggestion = async (preview) => {
+    if (!job) {
+      toast.error('Job details not loaded yet');
+      return;
+    }
+
+    setCoverLoading(true);
+    try {
+      const body = {
+        jobTitle: job.title || '',
+        company: job.company || '',
+        jobDescription: job.description || '',
+        formData,
+        matchPreview: preview || matchPreview || { matched: [], missing: [], score: 0 },
+      };
+
+      const res = await fetch('/api/generate-cover-letter', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        console.error('Error generating cover letter:', data);
+        toast.error(data.error || 'Failed to generate cover letter');
+        return;
+      }
+
+      // Insert generated paragraph and show suggestion as toast
+      const paragraph = data.coverLetter || '';
+      const suggestion = data.suggestion || '';
+
+      setFormData(prev => ({ ...prev, coverLetter: `${prev.coverLetter ? prev.coverLetter + '\n\n' : ''}${paragraph}${suggestion ? '\n\nSuggestion: ' + suggestion : ''}` }));
+      toast.success('AI-generated cover letter inserted');
+    } catch (err) {
+      console.error('Error calling /api/generate-cover-letter:', err);
+      toast.error('Failed to generate cover letter');
+    } finally {
+      setCoverLoading(false);
+    }
+  };
+
+  const quickApply = () => {
+    if (!profileResume) {
+      toast.error('No saved profile resume found');
+      return;
+    }
+    setUseProfileResume(true);
+    setResumeFile(null);
+
+    // Delay to ensure state updates before submitting
+    setTimeout(() => {
+      const form = document.querySelector('form');
+      if (form && typeof form.requestSubmit === 'function') {
+        form.requestSubmit();
+      } else {
+        // Fallback: call handler directly
+        handleSubmit({ preventDefault: () => {} });
+      }
+    }, 80);
   };
 
   const handleSubmit = async (e) => {
@@ -705,6 +909,13 @@ export default function ApplyPage() {
                             >
                               Remove
                             </button>
+                            <button
+                              type="button"
+                              onClick={openUploadedPreview}
+                              className="px-3 py-1 bg-cyan-600 text-white rounded font-semibold text-xs hover:bg-cyan-700 transition-all"
+                            >
+                              Preview
+                            </button>
                           </div>
                           <div className="flex items-start gap-2 p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
                             <Check className="w-4 h-4 text-green-600 shrink-0 mt-0.5" />
@@ -954,6 +1165,10 @@ export default function ApplyPage() {
                 <div className="flex items-center gap-3 mb-4 md:mb-6 pb-4 md:pb-6 border-b-2 border-gray-200 dark:border-gray-700">
                   <FileText className="w-5 h-5 md:w-6 md:h-6 text-green-600" />
                   <h2 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">Cover Letter (Optional)</h2>
+                  <div className="ml-auto flex gap-2">
+                    <button type="button" onClick={() => generateCoverLetterSuggestion()} disabled={coverLoading} className="px-3 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-md text-sm font-semibold">{coverLoading ? 'Generating...' : 'AI Suggest'}</button>
+                    <button type="button" onClick={() => insertSuggestedSentence(matchPreview?.matched || [])} className="px-3 py-2 bg-slate-50 rounded-md text-sm">Insert Skills</button>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Textarea
@@ -969,31 +1184,43 @@ export default function ApplyPage() {
               </div>
 
               {/* Submit Buttons */}
-              <div className="flex flex-col sm:flex-row gap-3 justify-end pt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => router.back()}
-                  disabled={submitting}
-                  className="px-6 md:px-8 py-2 md:py-3 text-sm md:text-base"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={submitting || (!resumeFile && !useProfileResume)}
-                  size="lg"
-                  className="px-6 md:px-8 py-2 md:py-3 text-sm md:text-base bg-cyan-600 hover:bg-cyan-700 text-white"
-                >
-                  {submitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                      Submitting...
-                    </>
-                  ) : (
-                    "Submit Application"
+              <div className="flex items-center justify-between gap-3 pt-4">
+                <div className="flex items-center gap-2">
+                  <button type="button" onClick={saveDraft} disabled={draftSaving} className="px-4 py-2 bg-slate-100 rounded-md text-sm">{draftSaving ? 'Saving...' : 'Save Draft'}</button>
+                  <button type="button" onClick={loadDraft} disabled={!hasDraft} className="px-4 py-2 bg-slate-50 rounded-md text-sm">Load Draft</button>
+                  <button type="button" onClick={deleteDraft} disabled={!hasDraft} className="px-4 py-2 bg-rose-50 rounded-md text-sm">Delete Draft</button>
+                </div>
+
+                <div className="flex gap-3">
+                  {profileResume && (
+                    <button type="button" onClick={() => quickApply()} className="px-4 py-2 bg-emerald-600 text-white rounded-md text-sm">Quick Apply</button>
                   )}
-                </Button>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => router.back()}
+                    disabled={submitting}
+                    className="px-6 md:px-8 py-2 md:py-3 text-sm md:text-base"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={submitting || (!resumeFile && !useProfileResume)}
+                    size="lg"
+                    className="px-6 md:px-8 py-2 md:py-3 text-sm md:text-base bg-cyan-600 hover:bg-cyan-700 text-white"
+                  >
+                    {submitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        Submitting...
+                      </>
+                    ) : (
+                      "Submit Application"
+                    )}
+                  </Button>
+                </div>
               </div>
             </form>
           </div>
@@ -1043,6 +1270,26 @@ export default function ApplyPage() {
                 </div>
               </div>
 
+              {/* Match Preview */}
+              <div className="mt-6 p-4 bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-100 dark:border-gray-700 shadow-sm">
+                <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Match Preview</h4>
+                <div className="text-xs text-gray-500 mb-3">Matched {(matchPreview?.matched || []).length} of {(job?.skills || []).length || 0} skills</div>
+                <div className="flex items-center gap-3">
+                  <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
+                    <div className="h-3 bg-teal-500" style={{ width: `${matchPreview?.score || 0}%` }} />
+                  </div>
+                  <div className="text-sm font-bold">{matchPreview?.score || 0}%</div>
+                </div>
+                <div className="mt-3 text-sm text-gray-700 dark:text-gray-300">
+                  <div><strong>Matched:</strong> {(matchPreview?.matched || []).slice(0,6).join(', ') || '—'}</div>
+                  <div className="mt-2 text-rose-600"><strong>Missing:</strong> {(matchPreview?.missing || []).slice(0,6).join(', ') || '—'}</div>
+                </div>
+                <div className="mt-3 flex gap-2">
+                  <button type="button" onClick={() => insertSuggestedSentence(matchPreview?.matched || [])} className="px-3 py-2 bg-slate-50 rounded-md text-sm">Insert Matched Skills</button>
+                  <button type="button" onClick={() => generateCoverLetterSuggestion(matchPreview)} disabled={coverLoading} className="px-3 py-2 bg-cyan-600 text-white rounded-md text-sm">{coverLoading ? 'Generating...' : 'AI Suggest Cover Letter'}</button>
+                </div>
+              </div>
+
               <div className="mt-6 p-4 bg-cyan-50 dark:bg-cyan-900/20 border border-cyan-200 dark:border-cyan-700/50 rounded-xl">
                 <p className="text-sm text-cyan-900 dark:text-cyan-200">
                   <span className="font-semibold">Pro Tip:</span> Complete all required fields for better matching with the role!
@@ -1054,7 +1301,7 @@ export default function ApplyPage() {
       </main>
 
       {/* Resume Preview Modal */}
-      {showResumePreview && profileResume && (
+      {showResumePreview && (profileResume || uploadedResumePreviewUrl) && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-auto">
             <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-6 flex items-center justify-between">
@@ -1068,13 +1315,13 @@ export default function ApplyPage() {
             </div>
             <div className="p-6">
               <iframe
-                src={profileResume.url}
+                src={uploadedResumePreviewUrl || profileResume?.url}
                 className="w-full h-[70vh] rounded-lg border border-gray-200 dark:border-gray-700"
                 title="Resume Preview"
               />
               <div className="mt-4 flex gap-3 justify-end">
                 <a
-                  href={profileResume.url}
+                  href={uploadedResumePreviewUrl || profileResume?.url}
                   download
                   className="px-6 py-3 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-semibold transition-all flex items-center gap-2"
                 >
