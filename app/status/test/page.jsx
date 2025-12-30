@@ -1,39 +1,13 @@
-"use client";
+import { Suspense } from "react";
+import TestPageClient from "./TestPageClient";
 
-import { useState, useEffect } from "react";
-import Link from "next/link";
-import Image from "next/image";
-import { useSearchParams, useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
-import NavBar from "@/components/NavBar";
-import { CheckCircle, XCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { toast } from "sonner";
-
-export default function TestPage() {
-  const searchParams = useSearchParams();
-  const interviewId = searchParams?.get("interview") || null;
-  const router = useRouter();
-  const { data: session, status } = useSession();
-
-  const [jobTitle, setJobTitle] = useState("General Software Engineer");
-  const [skillsInput, setSkillsInput] = useState("");
-  const [jobSkills, setJobSkills] = useState([]);
-  const [skillsEditable, setSkillsEditable] = useState(true);
-  const [experienceYears, setExperienceYears] = useState(2);
-  const [loading, setLoading] = useState(false);
-  const [questions, setQuestions] = useState([]);
-  const [showAnswers, setShowAnswers] = useState(false);
-  const [selected, setSelected] = useState({});
-  const [score, setScore] = useState(null);
-  const [interviewInfo, setInterviewInfo] = useState(null);
-
-  // Tests saved in localStorage
-  const [tests, setTests] = useState([]); // array of {id, createdAt, interviewId, jobTitle, skills, experienceYears, questions, selected, score, completed}
-  const [currentTestId, setCurrentTestId] = useState(null);
-
-  const STORAGE_KEY = 'mcq_tests_v1';
+export default function TestPageWrapper() {
+  return (
+    <Suspense fallback={<div className="min-h-[400px] flex items-center justify-center">Loading...</div>}>
+      <TestPageClient />
+    </Suspense>
+  );
+}
 
   // Load tests from localStorage on mount
   useEffect(() => {

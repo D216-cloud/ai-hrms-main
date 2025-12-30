@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import { Loader2 } from "lucide-react";
 
 export default function SharedTestPage() {
@@ -104,7 +105,7 @@ export default function SharedTestPage() {
         <div className="max-w-2xl mx-auto px-4">
           <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-6">
             <h1 className="text-2xl font-bold mb-2">{test.job_title || 'Shared Test'}</h1>
-            <p className="text-sm text-slate-600 mb-4">This assessment was created by the hiring team. Read the instructions below and click <strong>Start Test</strong> when you're ready.</p>
+            <p className="text-sm text-slate-600 mb-4">This assessment was created by the hiring team. Read the instructions below and click <strong>Start Test</strong> when you&apos;re ready.</p>
 
             <div className="space-y-3 mb-4">
               <div><strong>Questions:</strong> {test.questions.length}</div>
@@ -115,7 +116,7 @@ export default function SharedTestPage() {
 
             <div className="flex items-center gap-3">
               <button onClick={() => startTest()} className="px-4 py-2 bg-blue-600 text-white rounded">Start Test</button>
-              <a href="/" className="px-4 py-2 bg-white border rounded">Return to Jobs</a>
+              <Link href="/" className="px-4 py-2 bg-white border rounded">Return to Jobs</Link>
             </div>
           </div>
         </div>
