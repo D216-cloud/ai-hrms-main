@@ -694,6 +694,10 @@ export default function ApplyPage() {
         } else if (response.status === 404) {
           throw new Error("Job not found. It may have been removed.");
         } else if (response.status === 500) {
+          // If server returned actionable advice, show it to the user as an info toast
+          if (data?.advice) {
+            toast.info(data.advice, { duration: 8000 });
+          }
           throw new Error(data.userMessage || data.error || "Server error occurred. Please try again or contact support.");
         } else {
           throw new Error(data.error || "Failed to submit application");

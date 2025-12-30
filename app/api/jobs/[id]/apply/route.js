@@ -282,8 +282,10 @@ This is common with certain PDF formats and does not indicate a problem with you
       console.log("Embedding generated successfully");
     } catch (embeddingError) {
       console.error("Error generating embedding:", embeddingError);
-      // Use empty array as fallback
-      resumeEmbedding = new Array(1536).fill(0);
+      // Use fallback vector with the same dimension as job jd_embedding if available, otherwise default to 3072
+      const fallbackDim = (job && Array.isArray(job.jd_embedding) && job.jd_embedding.length) ? job.jd_embedding.length : 3072;
+      console.warn(`Using fallback embedding vector of length ${fallbackDim}`);
+      resumeEmbedding = new Array(fallbackDim).fill(0);
     }
 
     // Calculate cosine similarity match score (0-100)
@@ -403,19 +405,50 @@ This is common with certain PDF formats and does not indicate a problem with you
         aiMatchDataType: typeof aiMatchAnalysis,
         aiMatchDataKeys: aiMatchAnalysis ? Object.keys(aiMatchAnalysis) : null
       });
-      
+
+      // Detect common Postgres / pgvector issues and provide actionable advice
+      let advice = null;
+      const msg = (appError && appError.message) ? String(appError.message) : '';
+      if (msg.toLowerCase().includes('vector') || msg.toLowerCase().includes('pgvector') || msg.toLowerCase().includes('dimension')) {
+        advice = 'Embedding/vector error: ensure pgvector extension is installed and the vector column dimension matches the embedding size (e.g., VECTOR(3072)).';
+      } else if (msg.toLowerCase().includes('permission') || msg.toLowerCase().includes('not authorized')) {
+        advice = 'Permission error: ensure SUPABASE_SERVICE_ROLE_KEY is configured in the environment or adjust RLS policies to allow server inserts.';
+      }
+
+      const userMessage = process.env.NODE_ENV === 'development' ? `Failed to submit application: ${msg}` : "We're experiencing technical difficulties. Please try again or contact support if the issue persists.";
+
       return NextResponse.json(
-        { 
+        {
           error: "Failed to submit application",
-          details: process.env.NODE_ENV === 'development' ? appError.message : undefined,
-          // Add more user-friendly error message
-          userMessage: "We're experiencing technical difficulties. Please try again or contact support if the issue persists."
+          details: process.env.NODE_ENV === 'development' ? msg : undefined,
+          advice,
+          userMessage
         },
         { status: 500 }
       );
     }
 
     console.log("Application created successfully:", application.id);
+
+    // Ensure application_token exists (fallback if DB default not available)
+    try {
+      if (!application.application_token) {
+        console.warn('application_token not set by DB, generating fallback token');
+        const { v4: uuidv4 } = await import('uuid');
+        const fallbackToken = uuidv4().replace(/-/g, '') + Date.now().toString(36);
+        const { error: tokenErr } = await supabaseAdmin
+          .from('applications')
+          .update({ application_token: fallbackToken })
+          .eq('id', application.id);
+        if (tokenErr) {
+          console.warn('Failed to update fallback application_token:', tokenErr);
+        } else {
+          application.application_token = fallbackToken;
+        }
+      }
+    } catch (tokenError) {
+      console.error('Error ensuring application_token:', tokenError);
+    }
 
     // Send confirmation email to candidate
     try {
